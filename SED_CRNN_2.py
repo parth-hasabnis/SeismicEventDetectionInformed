@@ -1,7 +1,12 @@
+# SED_CRNN_2
+# SED = Sound Event Detection
+# CRNN = type of model
+# 2 = Second attempt. First attempt in old working directory
 # Date of creation - Aug 21 2023
 # Refactoring the code to make it more user friendly 
 # adding separate thresholds for events
 # Run a train test loop on Aug 22 2023
+
 
 import sys
 
@@ -183,7 +188,9 @@ class metrics():
         return torch.sum(torch.eq(self.prediction, self.target))/self.target.nelement()
     
     def Errors(self):
-        # print(self.prediction.shape, self.target.shape)
+        """
+        Calculate the Different Errors and metrics for the training
+        """
 
         metrics = {
             "type 1":[],
@@ -222,7 +229,10 @@ class metrics():
             # metrics['accuracy'].append(ACCURACY)
         return metrics
     
-    def get_thresh_pred(self):
+    def get_thresholded_predictions(self):
+        """
+        Return the thresholded predictions 
+        """
         return self.prediction
 
 def test_loop(save_spectrogtams: False, plot_ROC: True, save_metrics:False, path="First train"):
@@ -285,7 +295,6 @@ def test_loop(save_spectrogtams: False, plot_ROC: True, save_metrics:False, path
                 ax[axis].set_title(f"{args.events[axis]}")
                 ax[axis].set_yticks(np.linspace(0,1,11))
                 plt.savefig(f"./Output plots/{path}/Errors/theshold_{i}")
-                # plt.show()
             plt.close()
 
     if(plot_ROC):
@@ -307,14 +316,10 @@ def test_loop(save_spectrogtams: False, plot_ROC: True, save_metrics:False, path
         plt.show()
 
     if(save_spectrogtams):
-        best_threshold = []   
-        # metric = metrics(prediction,y, best_threshold) 
-        ones = torch.ones(y.shape)* best_threshold
-        ones = ones.to(device)
-        ones = prediction > ones
-        prediction = ones.float()*1
+        best_threshold = [0.7, 0.2]   
+        metric = metrics(prediction,y, best_threshold) 
+        prediction = metric.get_thresh_pred()
         heigths = [10, 20, 30, 40]
-        # prediction = metric.get_thresh_pred()
         upsampler = torch.nn.Upsample(scale_factor=pooling_time_ratio, mode='nearest')
         upsampler = upsampler.to(device)
         prediction  = prediction.permute(0, 2, 1)
@@ -345,7 +350,7 @@ def test_loop(save_spectrogtams: False, plot_ROC: True, save_metrics:False, path
             ax.set_title("Spectrogram with predictions and targets")
             ax.set_xlabel("Time")
             ax.set_ylabel("Mel bands")
-            ax.set_yticks(np.arange(0, 64, 2))
+            ax.set_yticks(np.arange(0, args.max_mel_band, 2))
             plt.legend(["P Vehicle", "P Pedestrian", "T Vehicle", "T Pedestrian"])
             plt.savefig(f"./Output plots/{path}/Plot_pedestrian_{i}.png")  
             plt.close()
@@ -355,7 +360,9 @@ if __name__ == "__main__":
     # test_loop(True,False,False, "AGU 2023")
     # sys.exit()  
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")       # Set Device as GPU for faster training
-    save_path = "Aug_21_2023"                                                   # path to save training and testing results
+    save_path = "/Aug_21_2023"                                                   # path to save training and testing results
+
+
     # Synthetic Dataset Path
     SYNTH_PATH = "D:\\Purdue\\Thesis\\eaps data\\2021_Urban_vibration_yamnet_V0\\Parth\\Strong_Dataset\\"
     # Unlabelled Dataset Path
@@ -375,10 +382,10 @@ if __name__ == "__main__":
     # DATA
     #########
 
-    synth_len = 70000       # total samples in synthetic training dataset
-
     synth_dataset = SeismicEventDataset(SYNTH_PATH, args, 'Synthetic')                                              # Load synthetic Dataset
     print("Labelled Dataset: %d", len(synth_dataset))
+
+    synth_len = round(len(synth_dataset)*0.9)       # total samples in synthetic training dataset
     synth_dataset, valid_dataset = random_split(synth_dataset, [synth_len, len(synth_dataset) - synth_len])         # Split the synthesic dataset to create a validation dataset
     unlabel_dataset = SeismicEventDataset(UNLABEL_PATH, args, 'Unlabel')                                            # Load Unlabelled dataset
     print("UnLabelled Dataset: %d", len(unlabel_dataset))
@@ -410,8 +417,10 @@ if __name__ == "__main__":
                     "kernel_size": n_layers * [3], "padding": n_layers * [1], "stride": n_layers * [1],
                     "nb_filters": [16,  32,  64,  128,  128, 128],
                     "pooling": [[2, 2], [2, 2], [1, 2], [1, 2], [1, 2], [1,2]]}
-    with open(save_path + "/crnnn_args.json", "w") as outfile:
-        json.dump(crnn_kwargs, outfile)
+    outfile = open("Results" + save_path + "/crnnn_args.json", "x")
+    json.dump(crnn_kwargs, outfile)
+    outfile.close()
+
     pooling_time_ratio = 4  # 2 * 2
 
     crnn = CRNN(**crnn_kwargs)
@@ -425,6 +434,10 @@ if __name__ == "__main__":
     optim = torch.optim.Adam(filter(lambda p: p.requires_grad, crnn.parameters()), **optim_kwargs)
     bce_loss = nn.BCELoss()
 
+    # Create plots to asses training performance
+    lossLog = np.zeros((args.epochs))
+    epochsLog = np.linspace(1, args.epochs)
+
     ########
     # TRAIN
     ########
@@ -435,6 +448,8 @@ if __name__ == "__main__":
 
         loss_value = train(train_loader, crnn, optim, epoch, ema_model=crnn_ema, rampup=True)
         print(f"Epoch {epoch}, Training Loss = {loss_value}")
+        lossLog[epoch] = loss_value
+
     ###########
     # VALIDATE
     ###########
@@ -453,8 +468,8 @@ if __name__ == "__main__":
         except:
             pass
 
-        torch.save(crnn.state_dict(), f"./Checkpoints/{save_path}/student_epoch_{epoch}.pt")
-        torch.save(crnn_ema.state_dict(), f"./Checkpoints/{save_path}/teacher_epoch_{epoch}.pt")
+        torch.save(crnn.state_dict(), f"Results/{save_path}/Checkpoints/student_epoch_{epoch}.pt")
+        torch.save(crnn_ema.state_dict(), f"Results/{save_path}/Checkpoints/teacher_epoch_{epoch}.pt")
 
 
     
