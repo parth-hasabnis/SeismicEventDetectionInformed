@@ -180,7 +180,7 @@ class metrics():
             ones[:, i] = ones[:, i] * thresholds[i]
         ones = prediction > ones
         self.prediction = ones.float()*1
-        
+        self.getPredictions = self.prediction
         self.target = target.permute(2, 0, 1)
         self.prediction = self.prediction.permute(2, 0, 1)
         
@@ -233,41 +233,29 @@ class metrics():
         """
         Return the thresholded predictions 
         """
-        return self.prediction
+        return self.getPredictions
 
-def test_loop(save_spectrogtams: False, plot_ROC: True, save_metrics:False, path="First train"):
+def test_loop(model_weights, save_spectrogtams: False, plot_ROC: True, save_metrics:False, path="First train"):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    TEST_PATH = "D:\\Purdue\\Thesis\\eaps data\\2021_Urban_vibration_yamnet_V0\\Parth\\Test_labelled_data\\AGU"
-    args = Arguments(lr=0.01, momentum=0.9, weight_decay=0, nesterov=False, epochs=20, exclude_unlabeled=False, consistency=100, 
-                    batch_size=512, labeled_batch_size=384, batch_sizes=[384, 128])
+    TEST_PATH = "D:\\Purdue\\Thesis\\eaps data\\2021_Urban_vibration_yamnet_V0\\Parth\\Test_data"
+    args = Arguments(lr=0.0001, momentum=0.7, weight_decay=0, nesterov=False, epochs=10, exclude_unlabeled=True, 
+                     consistency=0, batch_size=512, labeled_batch_size=384, batch_sizes=[384, 128])
 
     seed = 75
     torch.manual_seed(seed)
     np.random.seed(seed)
 
-    # cnn_integration = False
-    # n_channel = 1
-    # n_layers = 6
-    """
-    crnn_kwargs = {"n_in_channel": n_channel, "nclass": args.num_events, "attention": True, "n_RNN_cell": 128,
-                    "n_layers_RNN": 2,
-                    "activation": "glu",
-                    "dropout": 0.5,
-                    "cnn_integration": cnn_integration,
-                    "kernel_size": n_layers * [3], "padding": n_layers * [1], "stride": n_layers * [1],
-                    "nb_filters": [16,  32,  64,  128,  128, 128],
-                    "pooling": [[2, 2], [2, 2], [1, 2], [1, 2], [1, 2], [1,2]]}
-    """
-    f = open("args.json", "r")
-    args = json.loads(f.read(path + "/crnnn_args.json"))
+    f = open("Results" + path + "/crnnn_args.json")
+    crnn_kwargs = json.loads(f.read())
     f.close()
     pooling_time_ratio = 4  # 2 * 2
 
     crnn = CRNN(**crnn_kwargs)
-    crnn.load_state_dict(torch.load(f"./Checkpoints/{path}/student_epoch_29.pt" ))
+    crnn.load_state_dict(torch.load(f"Results/{path}/Checkpoints/{model_weights}" ))
     crnn.to(device)
     test_dataset = SeismicEventDataset(TEST_PATH, args, 'Synthetic')
-    eval_loader = DataLoader(test_dataset, args.batch_size)
+    eval_loader = DataLoader(test_dataset, args.batch_size, drop_last=False)
+    data, label = next(iter(eval_loader))
 
     for batch, (X, y) in enumerate(eval_loader):
         X = X.to(device)
@@ -295,31 +283,31 @@ def test_loop(save_spectrogtams: False, plot_ROC: True, save_metrics:False, path
                 ax[axis].set_ylabel(f"Threshold = {threshold}")
                 ax[axis].set_title(f"{args.events[axis]}")
                 ax[axis].set_yticks(np.linspace(0,1,11))
-                plt.savefig(f"./Output plots/{path}/Errors/theshold_{i}")
+                plt.savefig(f"Results/{path}/Errors/theshold_{i}")
             plt.close()
 
-    if(plot_ROC):
-        alpha = np.array(alpha)
-        beta = np.array(beta)
-        fig, ax = plt.subplots(1, args.num_events, figsize=(20,7))
-        for axis in range(len(ax)):
-            ax[axis].plot(alpha[:, axis], beta[:, axis])
-            ax[axis].scatter(alpha[:, axis], beta[:, axis])
-            for i, t in enumerate(thresholds):
-                if i > 5 and i < 20:
-                    ax[axis].annotate(f"{t:.2e}", (alpha[i, axis] + 0.01, beta[i, axis] + 0.01))
-            ax[axis].set_xlabel("Probability of False Alarm")
-            ax[axis].set_ylabel("Probability of Detection")
-            ax[axis].set_xlim([0,1])
-            ax[axis].set_ylim([0,1])
-            ax[axis].set_title(f"{args.events[axis]}")
-        plt.title("Region of Convergence")
-        plt.show()
+        if(plot_ROC):
+            alpha = np.array(alpha)
+            beta = np.array(beta)
+            fig, ax = plt.subplots(1, args.num_events, figsize=(20,7))
+            for axis in range(len(ax)):
+                ax[axis].plot(alpha[:, axis], beta[:, axis])
+                ax[axis].scatter(alpha[:, axis], beta[:, axis])
+                for i, t in enumerate(thresholds):
+                    if i > 5 and i < 20:
+                        ax[axis].annotate(f"{t:.2e}", (alpha[i, axis] + 0.01, beta[i, axis] + 0.01))
+                ax[axis].set_xlabel("Probability of False Alarm")
+                ax[axis].set_ylabel("Probability of Detection")
+                ax[axis].set_xlim([0,1])
+                ax[axis].set_ylim([0,1])
+                ax[axis].set_title(f"{args.events[axis]}")
+            plt.title("Region of Convergence")
+            plt.show()
 
     if(save_spectrogtams):
-        best_threshold = [0.7, 0.2]   
+        best_threshold = [0.85, 0.85]   
         metric = metrics(prediction,y, best_threshold) 
-        prediction = metric.get_thresh_pred()
+        prediction = metric.get_thresholded_predictions()
         heigths = [10, 20, 30, 40]
         upsampler = torch.nn.Upsample(scale_factor=pooling_time_ratio, mode='nearest')
         upsampler = upsampler.to(device)
@@ -328,6 +316,9 @@ def test_loop(save_spectrogtams: False, plot_ROC: True, save_metrics:False, path
         y = y.permute(0, 2, 1)
         y = upsampler(y)
         X = X.permute(0, 1, 3, 2)
+
+        print(prediction.shape)
+
 
         for i in range(X.shape[0]):
             x = X[i].squeeze(dim=0)
@@ -353,16 +344,17 @@ def test_loop(save_spectrogtams: False, plot_ROC: True, save_metrics:False, path
             ax.set_ylabel("Mel bands")
             ax.set_yticks(np.arange(0, args.max_mel_band, 2))
             plt.legend(["P Vehicle", "P Pedestrian", "T Vehicle", "T Pedestrian"])
-            plt.savefig(f"./Output plots/{path}/Plot_pedestrian_{i}.png")  
+            plt.savefig(f"Results/{path}/Output plots/Plot_{i}.png")  
             plt.close()
 
 if __name__ == "__main__":
  
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")       # Set Device as GPU for faster training
     save_path = "/Aug_21_2023"                                                  # path to save training and testing results
+    model_weights = "student_epoch_9.pt"
 
-    # test_loop(True,False,False, save_path)
-    # sys.exit() 
+    test_loop(model_weights=model_weights, save_spectrogtams=True, plot_ROC=False,save_metrics=False, path=save_path)
+    sys.exit() 
 
     # Synthetic Dataset Path
     SYNTH_PATH = "D:\\Purdue\\Thesis\\eaps data\\2021_Urban_vibration_yamnet_V0\\Parth\\Strong_Dataset\\"
