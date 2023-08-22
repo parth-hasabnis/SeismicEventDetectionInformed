@@ -226,7 +226,7 @@ class metrics():
             metrics['type 2'].append(TYPE_2)
             metrics['precsion'].append(PRECISION)
             metrics['recall'].append(RECALL)
-            # metrics['accuracy'].append(ACCURACY)
+
         return metrics
     
     def get_thresholded_predictions(self):
@@ -245,10 +245,10 @@ def test_loop(save_spectrogtams: False, plot_ROC: True, save_metrics:False, path
     torch.manual_seed(seed)
     np.random.seed(seed)
 
-    cnn_integration = False
-    n_channel = 1
-
-    n_layers = 6
+    # cnn_integration = False
+    # n_channel = 1
+    # n_layers = 6
+    """
     crnn_kwargs = {"n_in_channel": n_channel, "nclass": args.num_events, "attention": True, "n_RNN_cell": 128,
                     "n_layers_RNN": 2,
                     "activation": "glu",
@@ -257,6 +257,7 @@ def test_loop(save_spectrogtams: False, plot_ROC: True, save_metrics:False, path
                     "kernel_size": n_layers * [3], "padding": n_layers * [1], "stride": n_layers * [1],
                     "nb_filters": [16,  32,  64,  128,  128, 128],
                     "pooling": [[2, 2], [2, 2], [1, 2], [1, 2], [1, 2], [1,2]]}
+    """
     f = open("args.json", "r")
     args = json.loads(f.read(path + "/crnnn_args.json"))
     f.close()
@@ -356,20 +357,20 @@ def test_loop(save_spectrogtams: False, plot_ROC: True, save_metrics:False, path
             plt.close()
 
 if __name__ == "__main__":
-
-    # test_loop(True,False,False, "AGU 2023")
-    # sys.exit()  
+ 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")       # Set Device as GPU for faster training
-    save_path = "/Aug_21_2023"                                                   # path to save training and testing results
+    save_path = "/Aug_21_2023"                                                  # path to save training and testing results
 
+    # test_loop(True,False,False, save_path)
+    # sys.exit() 
 
     # Synthetic Dataset Path
     SYNTH_PATH = "D:\\Purdue\\Thesis\\eaps data\\2021_Urban_vibration_yamnet_V0\\Parth\\Strong_Dataset\\"
     # Unlabelled Dataset Path
     UNLABEL_PATH = "D:\\Purdue\\Thesis\\eaps data\\2021_Urban_vibration_yamnet_V0\\Parth\\Unlabel_Dataset\\"
     # Training arguments
-    args = Arguments(lr=0.0001, momentum=0.8, weight_decay=0, nesterov=False, epochs=50, exclude_unlabeled=True, 
-                     consistency=20, batch_size=64, labeled_batch_size=48, batch_sizes=[48, 16])
+    args = Arguments(lr=0.0001, momentum=0.7, weight_decay=0, nesterov=False, epochs=10, exclude_unlabeled=True, 
+                     consistency=0, batch_size=64, labeled_batch_size=48, batch_sizes=[48, 16])
 
     seed = 75
     torch.manual_seed(seed)
@@ -417,7 +418,7 @@ if __name__ == "__main__":
                     "kernel_size": n_layers * [3], "padding": n_layers * [1], "stride": n_layers * [1],
                     "nb_filters": [16,  32,  64,  128,  128, 128],
                     "pooling": [[2, 2], [2, 2], [1, 2], [1, 2], [1, 2], [1,2]]}
-    outfile = open("Results" + save_path + "/crnnn_args.json", "x")
+    outfile = open("Results" + save_path + "/crnnn_args.json", "w")
     json.dump(crnn_kwargs, outfile)
     outfile.close()
 
