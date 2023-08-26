@@ -7,7 +7,6 @@ class test_args():
         self.batch_sizes = [self.labeled_batch_size, batch_size - self.labeled_batch_size]
         self.events = ['Vehicle', 'Pedestrian']
 
-
         # Spectrogram parameters
         self.num_events = 2             # Events 
         self.LOG_OFFSET = 0.001         

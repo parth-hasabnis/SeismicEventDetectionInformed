@@ -315,9 +315,6 @@ def test_loop(model_weights, save_spectrogtams: False, plot_ROC: True, save_metr
         y = upsampler(y)
         X = X.permute(0, 1, 3, 2)
 
-        print(prediction.shape)
-
-
         for i in range(X.shape[0]):
             x = X[i].squeeze(dim=0)
             x = x.cpu().detach().numpy()
