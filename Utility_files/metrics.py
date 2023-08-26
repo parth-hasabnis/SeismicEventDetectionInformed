@@ -9,7 +9,7 @@ class metrics():
         ones = torch.ones(target.shape)
         ones = ones.to(device)
         for i in range(self.n_events):
-            ones[:, i] = ones[:, i] * thresholds[i]
+            ones[:,:, i] = ones[:,:, i] * thresholds[i]
         ones = prediction > ones
         self.prediction = ones.float()*1
         self.origPredictions = self.prediction

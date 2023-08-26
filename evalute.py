@@ -122,7 +122,7 @@ def test_model(weights, save_path, dataset_path, dataset_type, save_spectrograms
             ax.set_ylabel("Mel bands")
             ax.set_yticks(np.arange(0, args.max_mel_band, 2))
             plt.legend(["P Vehicle", "P Pedestrian", "T Vehicle", "T Pedestrian"])
-            plt.savefig(f"Results/{save_path}/Output plots/Plot_{i}.png")  
+            plt.savefig(f"Results/{save_path}/Output plots/{dataset_type}_{weights}_{i}.png")  
             plt.close()
         print("Done Saving")
 
