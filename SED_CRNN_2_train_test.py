@@ -21,44 +21,11 @@ import matplotlib.pyplot as plt
 import json
 from Utility_files.create_data import SeismicEventDataset, relabel_dataset, TwoStreamBatchSampler, MultiStreamBatchSampler
 from models.CRNN import CRNN
-from Utility_files.utils import weights_init, sigmoid_rampup, linear_rampup
+from Utility_files.utils import weights_init, sigmoid_rampup, linear_rampup, Arguments, DatasetArgs
 import librosa
 import librosa.display
 
 # Model was created and trained in Windows, hence command line was now used. All training parameters are set using this class
-class Arguments():
-    def __init__(self, momentum, weight_decay, nesterov, epochs:int, consistency, exclude_unlabeled:bool, batch_size=16, 
-                 labeled_batch_size=48, batch_sizes=[48, 16],consistency_type='kl', lr=0.01, initial_lr=0.005, lr_rampup = 7, ema_decay=0.999, 
-                 consistency_rampup=5, early_stop=0.5, subsets=["synthetic", "unlabel"]):
-        super().__init__()
-
-        self.lr = lr
-        self.momentum = momentum
-        self.weight_decay = weight_decay
-        self.nesterov = nesterov
-        self.epochs = epochs
-        self.consistency_type = consistency_type
-        self.initial_lr = initial_lr
-        self.lr_rampup = lr_rampup
-        self.consistency = consistency
-        self.ema_decay = ema_decay
-        self.labeled_batch_size = labeled_batch_size
-        self.exclude_unlabeled = exclude_unlabeled
-        self.batch_size = batch_size
-        self.consistency_rampup = consistency_rampup
-        self.early_stop = early_stop
-        self.subsets = subsets
-        self.batch_sizes = batch_sizes
-        self.events = ['Vehicle', 'Pedestrian']
-
-        self.num_events = 2
-        self.LOG_OFFSET = 0.001
-        self.max_mel_band = 64 # Max mel band of interest
-        self.stft_window_seconds = 0.25 # original 0.25
-        self.stft_hop_seconds = 0.1   # original 0.1
-        self.mel_min_hz = 1
-        self.mel_bands = 128            # original 64
-        self.mel_max_hz = 500
 
 def adjust_learning_rate_2(optimizer, rampup_value, args):
     """ adjust the learning rate
@@ -165,7 +132,6 @@ def train(train_loader, model, optimizer, c_epoch, ema_model=None, mask_weak=Non
 
     print("Training Completed")
     return loss
-
 class metrics():
 
     def __init__(self, prediction:torch.Tensor, target:torch.Tensor, thresholds) -> None:
@@ -251,7 +217,7 @@ def test_loop(model_weights, save_spectrogtams: False, plot_ROC: True, save_metr
     crnn = CRNN(**crnn_kwargs)
     crnn.load_state_dict(torch.load(f"Results/{path}/Checkpoints/{model_weights}" ))
     crnn.to(device)
-    test_dataset = SeismicEventDataset(TEST_PATH, args, 'Synthetic')
+    test_dataset = SeismicEventDataset(TEST_PATH, DatasetArgs, 'Synthetic')
     eval_loader = DataLoader(test_dataset, args.batch_size, drop_last=False)
     data, label = next(iter(eval_loader))
 
@@ -348,8 +314,8 @@ if __name__ == "__main__":
     save_path = "/Aug_21_2023"                                                  # path to save training and testing results
     model_weights = "student_epoch_9.pt"
 
-    test_loop(model_weights=model_weights, save_spectrogtams=True, plot_ROC=False,save_metrics=False, path=save_path)
-    sys.exit() 
+    # test_loop(model_weights=model_weights, save_spectrogtams=True, plot_ROC=False,save_metrics=False, path=save_path)
+    # sys.exit() 
 
     # Synthetic Dataset Path
     SYNTH_PATH = "D:\\Purdue\\Thesis\\eaps data\\2021_Urban_vibration_yamnet_V0\\Parth\\Strong_Dataset\\"
@@ -423,7 +389,8 @@ if __name__ == "__main__":
     bce_loss = nn.BCELoss()
 
     # Create plots to asses training performance
-    lossLog = np.zeros((args.epochs))
+    trainLossLog = np.zeros((args.epochs))
+    validateLossLog = np.zeros((args.epochs))
     epochsLog = np.linspace(1, args.epochs)
 
     ########
@@ -436,7 +403,7 @@ if __name__ == "__main__":
 
         loss_value = train(train_loader, crnn, optim, epoch, ema_model=crnn_ema, rampup=True)
         print(f"Epoch {epoch}, Training Loss = {loss_value}")
-        lossLog[epoch] = loss_value
+        trainLossLog[epoch] = loss_value
 
     ###########
     # VALIDATE
@@ -452,9 +419,13 @@ if __name__ == "__main__":
                     eval_loss += loss
             
             eval_loss = eval_loss/i
+            trainLossLog[epoch] = eval_loss
+
             print(f"Epoch {epoch}, Training Loss = {loss_value}, Validation Loss  = {eval_loss}")
         except:
             pass
+
+
 
         torch.save(crnn.state_dict(), f"Results/{save_path}/Checkpoints/student_epoch_{epoch}.pt")
         torch.save(crnn_ema.state_dict(), f"Results/{save_path}/Checkpoints/teacher_epoch_{epoch}.pt")

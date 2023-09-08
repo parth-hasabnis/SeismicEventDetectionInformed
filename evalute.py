@@ -6,17 +6,18 @@ import numpy as np
 import matplotlib.pyplot as plt
 import json
 from Utility_files.metrics import metrics
-from Utility_files.test_args import test_args
-from Utility_files.create_data import SeismicEventDataset, relabel_dataset, TwoStreamBatchSampler, MultiStreamBatchSampler
+from Utility_files.create_data import SeismicEventDataset
+from Utility_files.utils import DatasetArgs, TestArguments
 from models.CRNN import CRNN
 import librosa
 import librosa.display
 
-def test_model(weights, save_path, dataset_path, dataset_type, save_spectrograms, plot_ROC, save_metrics):
+def test_model(weights, save_path, dataset_path, dataset_type, save_spectrograms: bool, plot_ROC: bool, save_metrics:bool, best_threshold=[0.5, 0.5]):
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     TEST_PATH = dataset_path    # Set dataset path 
-    args = test_args()            # Use standard parameters
+    args = TestArguments()            # Use standard parameters
+    dataset_args = DatasetArgs()
 
     seed = 75
     torch.manual_seed(seed)
@@ -30,13 +31,13 @@ def test_model(weights, save_path, dataset_path, dataset_type, save_spectrograms
     crnn = CRNN(**crnn_kwargs)
     crnn.load_state_dict(torch.load(f"Results/{save_path}/Checkpoints/{weights}" ))
     crnn.to(device)
-    test_dataset = SeismicEventDataset(TEST_PATH, args, dataset_type)
+    test_dataset = SeismicEventDataset(TEST_PATH, dataset_args, dataset_type)
     eval_loader = DataLoader(test_dataset, args.batch_size, drop_last=False)
 
     bases = np.linspace(-5, 5, 22)          # Thresholds for predictions
     thresholds = 1/(1 + np.exp(-bases))     # Generate exponentially distributed thresholds
 
-    if(plot_ROC):
+    if(plot_ROC or save_metrics):
         yConsolidated = []
         predictionConsolidated = []    
 
@@ -47,7 +48,7 @@ def test_model(weights, save_path, dataset_path, dataset_type, save_spectrograms
     alpha = []
     beta = []
 
-    if(save_metrics):
+    if(plot_ROC or save_metrics):
         for i, threshold in enumerate(thresholds):
             threshold = np.ones(args.num_events)*threshold
             metric = metrics(prediction,y, threshold) 
@@ -56,6 +57,8 @@ def test_model(weights, save_path, dataset_path, dataset_type, save_spectrograms
             beta.append(1 - np.array(errors["type 2"]))
             error = metric.Errors()
             error_values = np.array(list(error.values()))
+
+    if(save_metrics):
             fig, ax = plt.subplots(nrows=1, ncols=args.num_events, figsize=(15,6))
             for axis in range(len(ax)):
                 ax[axis].bar(list(error.keys()),error_values[:,axis])
@@ -66,27 +69,26 @@ def test_model(weights, save_path, dataset_path, dataset_type, save_spectrograms
                 plt.savefig(f"Results/{save_path}/Errors/theshold_{i}")
             plt.close()
 
-        if(plot_ROC):
-            alpha = np.array(alpha)
-            beta = np.array(beta)
-            fig, ax = plt.subplots(1, args.num_events, figsize=(20,7))
-            for axis in range(len(ax)):
-                ax[axis].plot(alpha[:, axis], beta[:, axis])
-                ax[axis].scatter(alpha[:, axis], beta[:, axis])
-                for i, t in enumerate(thresholds):
-                    if i > 5 and i < 20:
-                        ax[axis].annotate(f"{t:.2e}", (alpha[i, axis] + 0.01, beta[i, axis] + 0.01))
-                ax[axis].set_xlabel("Probability of False Alarm")
-                ax[axis].set_ylabel("Probability of Detection")
-                ax[axis].set_xlim([0,1])
-                ax[axis].set_ylim([0,1])
-                ax[axis].set_title(f"{args.events[axis]}")
-            plt.title("Region of Convergence")
-            plt.show()
+    if(plot_ROC):
+        alpha = np.array(alpha)
+        beta = np.array(beta)
+        fig, ax = plt.subplots(1, args.num_events, figsize=(20,7))
+        for axis in range(len(ax)):
+            ax[axis].plot(alpha[:, axis], beta[:, axis])
+            ax[axis].scatter(alpha[:, axis], beta[:, axis])
+            for i, t in enumerate(thresholds):
+                if i > 5 and i < 20:
+                    ax[axis].annotate(f"{t:.2e}", (alpha[i, axis] + 0.01, beta[i, axis] + 0.01))
+            ax[axis].set_xlabel("Probability of False Alarm")
+            ax[axis].set_ylabel("Probability of Detection")
+            ax[axis].set_xlim([0,1])
+            ax[axis].set_ylim([0,1])
+            ax[axis].set_title(f"{args.events[axis]}")
+        plt.title("Region of Convergence")
+        plt.show()
 
     if(save_spectrograms):
-        print("Saving spectrograms")
-        best_threshold = [0.1, 0.1]   
+        print("Saving spectrograms")  
         metric = metrics(prediction,y, best_threshold)
         prediction = metric.get_thresholded_predictions()
         heigths = [10, 20, 30, 40]
@@ -105,8 +107,8 @@ def test_model(weights, save_path, dataset_path, dataset_type, save_spectrograms
             y_ = y[i].cpu().detach().numpy() - 0.5
             pred_ = prediction[i].cpu().detach().numpy() - 0.5
             sample_rate = 1000
-            window_length_samples = int(round(sample_rate * args.stft_window_seconds))
-            hop_length_samples = int(round(sample_rate * args.stft_hop_seconds))
+            window_length_samples = int(round(sample_rate * dataset_args.stft_window_seconds))
+            hop_length_samples = int(round(sample_rate * dataset_args.stft_hop_seconds))
             fft_length = 2 ** int(np.ceil(np.log(window_length_samples) / np.log(2.0)))
 
             fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(15, 9))
@@ -116,11 +118,11 @@ def test_model(weights, save_path, dataset_path, dataset_type, save_spectrograms
             ax.plot(pred_[1]*heigths[1], linewidth=3)
             ax.plot(y_[0]*heigths[2], linewidth=3)
             ax.plot(y_[1]*heigths[3], linewidth=3)
-            ax.set_ylim([0, args.max_mel_band-1])
+            ax.set_ylim([0, dataset_args.max_mel_band-1])
             ax.set_title("Spectrogram with predictions and targets")
             ax.set_xlabel("Time")
             ax.set_ylabel("Mel bands")
-            ax.set_yticks(np.arange(0, args.max_mel_band, 2))
+            ax.set_yticks(np.arange(0, dataset_args.max_mel_band, 2))
             plt.legend(["P Vehicle", "P Pedestrian", "T Vehicle", "T Pedestrian"])
             plt.savefig(f"Results/{save_path}/Output plots/{dataset_type}_{weights}_{i}.png")  
             plt.close()
@@ -129,9 +131,10 @@ def test_model(weights, save_path, dataset_path, dataset_type, save_spectrograms
 if __name__ == "__main__":
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    save_path = "/Jun_25_2023"                                              # path to save training and testing results
-    model_weights = "student_epoch_19.pt"                                    # model to evaluate
+    save_path = "/Jun_26_2023"                                              # path to save training and testing results
+    model_weights = "student_epoch_49.pt"                                    # model to evaluate
     eval_dataset_path = r"../Data/DATASET/Test/Synthetic_mini"
     eval_dataset_type = 'Synthetic'
 
-    test_model(model_weights, save_path, eval_dataset_path, eval_dataset_type, True, False, False)
+    test_model(model_weights, save_path, eval_dataset_path, eval_dataset_type, 
+               save_spectrograms=True, plot_ROC=False, save_metrics=False, best_threshold=[0.1, 0.8])

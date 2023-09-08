@@ -63,54 +63,34 @@ class CRNN(nn.Module):
         if self.cnn_integration:
             bs_in, nc_in = x.size(0), x.size(1)
             x = x.view(bs_in * nc_in, 1, *x.shape[2:])
-        # print(f"Input shape={x.shape}")
         x = self.cnn(x)
-        # print(f"CNN output shape={x.shape}")
         bs, chan, frames, freq = x.size()
         if self.cnn_integration:
             x = x.view(bs_in, chan * nc_in, frames, freq)
         
         if freq != 1:
             warnings.warn(f"Output shape is: {(bs, frames, chan * freq)}, from {freq} staying freq")
-            #print("Problem - before permute")
             x = x.permute(0, 2, 1, 3)
-            #print(f"CNN permute shape={x.shape}")
-            #print("Problem - after permute")
             x = x.contiguous().view(bs, frames, chan * freq)
-            #print("Problem - after view")
         else:
-            #print("IN ELSE")
             x = x.squeeze(-1)
-            #print("IN ELSE")
             x = x.permute(0, 2, 1)  # [bs, frames, chan]
-            #print("IN ELSE")
         if self.cnn_integration:
-            # print("CNN integration")
             x = self.fc(x)
-            #print("CNN integration")
-
-        # rnn features
-        #print(f"PROBLEM - before RNN, shape={x.shape}")
 
         x = self.rnn(x)
     
-        #print("PROBLEM - after RNN")
         x = self.dropout(x)
-        #print("PROBLEM - after dropout")
-        #print(f"Before Dense: {x.shape}")
         strong = self.dense(x)  # [bs, frames, nclass]
-        #print(f"After Dense: {strong.shape}")
-        #print("PROBLEM - after dense")
         strong = self.sigmoid(strong)
-        # strong = strong.permute(0,2,1)
-        """ if self.attention:
+        if self.attention:
             sof = self.dense_softmax(x)  # [bs, frames, nclass]
             sof = self.softmax(sof)
             sof = torch.clamp(sof, min=1e-7, max=1)
             weak = (strong * sof).sum(-2) / sof.sum(-2)   # [bs, nclass]
         else:
-            weak = strong.mean(1) """
-        return strong
+            weak = strong.mean(1)
+        return strong, weak
     
 
 if __name__ == '__main__':

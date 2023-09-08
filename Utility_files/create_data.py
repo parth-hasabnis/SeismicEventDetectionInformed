@@ -10,11 +10,23 @@ import librosa
 import itertools
 
 class SeismicEventDataset(Dataset):
+    """
+    Seismic Event Dataset Class
+    data_path: Path of Dataset files, each 10s long sampled at 1000Hz
+    args: 
+    """
 
-    def __init__(self, data_path, args, type):
+    def __init__(self, data_path, args, type, power=1, normalize=True):
         self.data_path = data_path
         self.args = args
+
+        if type not in ['Synthetic', 'Unlabel']:
+            raise Exception("Invalid Dataset type")
+
+
         self.type = type
+        self.power = power
+        self.normalize = normalize
 
         self.data = []
         self.labels = []
@@ -52,9 +64,13 @@ class SeismicEventDataset(Dataset):
 
         spectrogram = librosa.feature.melspectrogram(y=data, sr=fs, n_fft=fft_length, win_length=window_length_samples,
                                                      hop_length=hop_length_samples, fmin=self.args.mel_min_hz, fmax=self.args.mel_max_hz, 
-                                                     power=1, n_mels=self.args.mel_bands, htk=False)
-        spectrogram_norm = spectrogram/np.max(spectrogram)
-        log_mel_spectrogram = np.log(spectrogram_norm + self.args.LOG_OFFSET)
+                                                     power=self.power, n_mels=self.args.mel_bands, htk=False)
+        if self.normalize:
+            spectrogram_norm = spectrogram/np.max(spectrogram)
+            log_mel_spectrogram = np.log(spectrogram_norm + self.args.LOG_OFFSET)
+        else:
+            log_mel_spectrogram = np.log(spectrogram + self.args.LOG_OFFSET)
+            
         log_mel_spectrogram = log_mel_spectrogram[:self.args.max_mel_band,:]
 
         len_data_s = len(data)/fs
