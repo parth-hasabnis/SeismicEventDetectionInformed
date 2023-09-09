@@ -23,7 +23,6 @@ class SeismicEventDataset(Dataset):
         if type not in ['Synthetic', 'Unlabel']:
             raise Exception("Invalid Dataset type")
 
-
         self.type = type
         self.power = power
         self.normalize = normalize

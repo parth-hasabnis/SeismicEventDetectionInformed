@@ -149,9 +149,9 @@ if __name__ == "__main__":
     print("UnLabelled Dataset: %d", len(unlabel_dataset))
 
     ### Test on small dummy data
-    # synth_dataset, sm = random_split(synth_dataset, [384, len(synth_dataset) - 384]) 
-    # unlabel_dataset, sm = random_split(unlabel_dataset, [128, len(unlabel_dataset) - 128])
-    # valid_dataset, sm = random_split(valid_dataset, [128, len(valid_dataset) - 128]) 
+    synth_dataset, sm = random_split(synth_dataset, [384, len(synth_dataset) - 384]) 
+    unlabel_dataset, sm = random_split(unlabel_dataset, [128, len(unlabel_dataset) - 128])
+    valid_dataset, sm = random_split(valid_dataset, [128, len(valid_dataset) - 128]) 
     ###
 
     train_dataset = [synth_dataset, unlabel_dataset]                                                                # Create the final training dataset
@@ -162,7 +162,7 @@ if __name__ == "__main__":
         idx = idx + len(dataset)
         indices.append(temp)
 
-    train_dataset = torch.utils.data.ConcatDataset(train_dataset)
+    train_dataset = ConcatDataset(train_dataset)
     batch_sampler = MultiStreamBatchSampler(args.subsets, indices, args.batch_sizes, args.batch_size)
     train_loader = DataLoader(train_dataset, batch_sampler=batch_sampler)
     valid_loader = DataLoader(valid_dataset, batch_size=args.batch_size)
@@ -183,7 +183,7 @@ if __name__ == "__main__":
                     "nb_filters": [16,  32,  64,  128,  128, 128],
                     "pooling": [[2, 2], [2, 2], [1, 2], [1, 2], [1, 2], [1,2]]}
     outfile = open("Results" + save_path + "/crnnn_args.json", "w")
-    json.dump(crnn_kwargs, outfile)
+    json.dump(crnn_kwargs, outfile, indent=2)
     outfile.close()
 
     pooling_time_ratio = 4  # 2 * 2
@@ -243,7 +243,8 @@ if __name__ == "__main__":
             pass
 
         torch.save(crnn.state_dict(), f"Results/{save_path}/Checkpoints/student_epoch_{epoch}.pt")
-        torch.save(crnn_ema.state_dict(), f"Results/{save_path}/Checkpoints/teacher_epoch_{epoch}.pt")
+        if args.e is not None:
+            torch.save(crnn_ema.state_dict(), f"Results/{save_path}/Checkpoints/teacher_epoch_{epoch}.pt")
 
         if(eval_loss < bestLoss):
             torch.save(crnn.state_dict(), f"Results/{save_path}/Checkpoints/best_model_{epoch}.pt")

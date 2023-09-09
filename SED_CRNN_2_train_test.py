@@ -425,8 +425,6 @@ if __name__ == "__main__":
         except:
             pass
 
-
-
         torch.save(crnn.state_dict(), f"Results/{save_path}/Checkpoints/student_epoch_{epoch}.pt")
         torch.save(crnn_ema.state_dict(), f"Results/{save_path}/Checkpoints/teacher_epoch_{epoch}.pt")
 

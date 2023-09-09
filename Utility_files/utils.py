@@ -40,9 +40,9 @@ def sigmoid_rampup(current, rampup_length):
         return float(np.exp(-5.0 * phase * phase))
     
 class Arguments():
-    def __init__(self, momentum, weight_decay, nesterov, epochs:int, consistency, exclude_unlabeled:bool, batch_size=16, 
+    def __init__(self, momentum, nesterov, epochs:int, consistency, batch_size=16, 
                  labeled_batch_size=48, batch_sizes=[48, 16],consistency_type='kl', lr=0.01, initial_lr=0.005, lr_rampup = 7, ema_decay=0.999, 
-                 consistency_rampup=5, early_stop=0.5, subsets=["synthetic", "unlabel"]):
+                 consistency_rampup=5, early_stop=0.5, subsets=["synthetic", "unlabel"], weight_decay=0.999):
         super().__init__()
 
         self.lr = lr
@@ -56,7 +56,6 @@ class Arguments():
         self.consistency = consistency
         self.ema_decay = ema_decay
         self.labeled_batch_size = labeled_batch_size
-        self.exclude_unlabeled = exclude_unlabeled
         self.batch_size = batch_size
         self.consistency_rampup = consistency_rampup
         self.early_stop = early_stop
