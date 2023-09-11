@@ -111,7 +111,7 @@ def train_one_epoch(train_loader, model, optimizer, c_epoch, ema_model=None, mas
 if __name__ == "__main__":
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    save_path = "/Sep_9_2023"
+    save_path = "/Sep_10_2023"
     
     SYNTH_PATH_1 = r"H:\EAPS\DATASET\Train\Strong_Dataset_v1"
     SYNTH_PATH_2 = r"H:\EAPS\DATASET\Train\Strong_Dataset_v2"
@@ -142,6 +142,7 @@ if __name__ == "__main__":
     synth_len = round(len(synth_dataset)*0.8)       # total samples in synthetic training dataset
     synth_dataset, valid_dataset = random_split(synth_dataset, [synth_len, len(synth_dataset) - synth_len])         # Split the synthesic dataset to create a validation datase
 
+    # Fix
     # if args.exclude_unlabelled == False:
     unlabel_dataset_1 = SeismicEventDataset(UNLABEL_PATH_1, dataset_args, 'Unlabel')                                            # Load Unlabelled dataset
     unlabel_dataset_2 = SeismicEventDataset(UNLABEL_PATH_2, dataset_args, 'Unlabel') 
@@ -155,6 +156,7 @@ if __name__ == "__main__":
     # xvalid_dataset, sm = random_split(valid_dataset, [128, len(valid_dataset) - 128]) 
     ###
 
+    # Fix
     # if args.exclude_unlabelled == False:
     train_dataset = [synth_dataset, unlabel_dataset]    
     # else:
