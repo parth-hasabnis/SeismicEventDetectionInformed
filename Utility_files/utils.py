@@ -40,7 +40,7 @@ def sigmoid_rampup(current, rampup_length):
         return float(np.exp(-5.0 * phase * phase))
     
 class Arguments():
-    def __init__(self, momentum, nesterov, epochs:int, consistency, batch_size=16, 
+    def __init__(self, momentum, nesterov, epochs:int, consistency, batch_size=64, exclude_unlabelled=False,
                  labeled_batch_size=48, batch_sizes=[48, 16],consistency_type='kl', lr=0.01, initial_lr=0.005, lr_rampup = 7, ema_decay=0.999, 
                  consistency_rampup=5, early_stop=0.5, subsets=["synthetic", "unlabel"], weight_decay=0.999):
         super().__init__()
@@ -55,13 +55,22 @@ class Arguments():
         self.lr_rampup = lr_rampup
         self.consistency = consistency
         self.ema_decay = ema_decay
-        self.labeled_batch_size = labeled_batch_size
-        self.batch_size = batch_size
         self.consistency_rampup = consistency_rampup
         self.early_stop = early_stop
         self.subsets = subsets
-        self.batch_sizes = batch_sizes
+        self.exclude_unlabelled = exclude_unlabelled
         self.events = ['Vehicle', 'Pedestrian']
+
+        self.batch_size = batch_size
+        if exclude_unlabelled == True:           
+            self.labeled_batch_size = batch_size
+            self.batch_sizes = [self.labeled_batch_size]
+        elif exclude_unlabelled == False:
+            self.labeled_batch_size = labeled_batch_size
+            assert batch_size == sum(batch_sizes)
+            self.batch_sizes = batch_sizes
+
+
 
 class DatasetArgs():
 
@@ -83,7 +92,7 @@ class TestArguments():
     def __init__(self, batch_size=512, labeled_batch=0.75) -> None:
         
         self.batch_size = batch_size
-        self.labeled_batch_size = round(batch_size*labeled_batch)
-        self.batch_sizes = [self.labeled_batch_size, batch_size - self.labeled_batch_size]
+        # self.labeled_batch_size = round(batch_size*labeled_batch)
+        # self.batch_sizes = [self.labeled_batch_size, batch_size - self.labeled_batch_size]
         self.events = ['Vehicle', 'Pedestrian']
         self.num_events = len(self.events)

@@ -23,7 +23,7 @@ def adjust_learning_rate(optimizer, epoch, batch_num, batches_in_epoch, args):
         y = m*x + c
         y = learning rate for current epoch
         m = slope
-        x = fractional epoch
+        x = fractional epoch (epoch + current_batch/batches_in_epoch)
         c = initial learning rate
         '''
         m = (args.lr - args.initial_lr)/args.lr_rampup      
@@ -85,15 +85,14 @@ def train_one_epoch(train_loader, model, optimizer, c_epoch, ema_model=None, mas
         strong_pred, weak_pred = model(batch_input)
 
         loss = None
-        strong_class_loss = class_criterion(strong_pred[:args.batch_sizes[1]], target[:args.batch_sizes[1]])
-        strong_ema_class_loss = class_criterion(strong_pred_ema[:args.batch_sizes[1]], target[:args.batch_sizes[1]])
+        strong_class_loss = class_criterion(strong_pred[:args.batch_sizes[0]], target[:args.batch_sizes[0]])
+        strong_ema_class_loss = class_criterion(strong_pred_ema[:args.batch_sizes[0]], target[:args.batch_sizes[0]])
         if loss is not None:
             loss += strong_class_loss
         else:
             loss = strong_class_loss
 
         if ema_model is not None:
-            # consistency_weight = args.consistency*rampup_value
             consistency_weight = args.consistency * sigmoid_rampup(c_epoch, args.consistency_rampup)
             consistency_loss_strong = consistency_weight * consistency_criterion(strong_pred, strong_pred_ema)
             if loss is not None:
@@ -112,15 +111,15 @@ def train_one_epoch(train_loader, model, optimizer, c_epoch, ema_model=None, mas
 if __name__ == "__main__":
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    save_path = "/Sep_8_2023"
+    save_path = "/Sep_9_2023"
     
     SYNTH_PATH_1 = r"H:\EAPS\DATASET\Train\Strong_Dataset_v1"
     SYNTH_PATH_2 = r"H:\EAPS\DATASET\Train\Strong_Dataset_v2"
     UNLABEL_PATH_1 = r"H:\EAPS\DATASET\Train\Unlabel_Dataset_v1"
     UNLABEL_PATH_2 = r"H:\EAPS\DATASET\Train\Unlabel_Dataset_v2"
 
-    kwargs = {"lr":0.001, "momentum":0.7, "nesterov":True, "epochs":50, "exclude_unlabeled":True,
-              "consistency":0, "batch_size":512, "labeled_batch_size":128,"batch_sizes":[384, 128],
+    kwargs = {"lr":0.001, "momentum":0.7, "nesterov":True, "epochs":50, "exclude_unlabelled":False,
+              "consistency":0, "batch_size":512, "labeled_batch_size":384,"batch_sizes":[384, 128],
                "initial_lr":0.00001, "lr_rampup":10, "consistency_rampup":15, "weight_decay":0}
     outfile = open("Results" + save_path + "/training_args.json", "w")
     json.dump(kwargs, outfile, indent=2)
@@ -143,18 +142,23 @@ if __name__ == "__main__":
     synth_len = round(len(synth_dataset)*0.8)       # total samples in synthetic training dataset
     synth_dataset, valid_dataset = random_split(synth_dataset, [synth_len, len(synth_dataset) - synth_len])         # Split the synthesic dataset to create a validation datase
 
+    # if args.exclude_unlabelled == False:
     unlabel_dataset_1 = SeismicEventDataset(UNLABEL_PATH_1, dataset_args, 'Unlabel')                                            # Load Unlabelled dataset
     unlabel_dataset_2 = SeismicEventDataset(UNLABEL_PATH_2, dataset_args, 'Unlabel') 
     unlabel_dataset = ConcatDataset([unlabel_dataset_1, unlabel_dataset_2])
     print("UnLabelled Dataset: %d", len(unlabel_dataset))
 
     ### Test on small dummy data
-    synth_dataset, sm = random_split(synth_dataset, [384, len(synth_dataset) - 384]) 
-    unlabel_dataset, sm = random_split(unlabel_dataset, [128, len(unlabel_dataset) - 128])
-    valid_dataset, sm = random_split(valid_dataset, [128, len(valid_dataset) - 128]) 
+    # synth_dataset, sm = random_split(synth_dataset, [1000, len(synth_dataset) - 1000]) 
+    # if args.exclude_unlabelled == False:
+    # unlabel_dataset, sm = random_split(unlabel_dataset, [128, len(unlabel_dataset) - 128])
+    # xvalid_dataset, sm = random_split(valid_dataset, [128, len(valid_dataset) - 128]) 
     ###
 
-    train_dataset = [synth_dataset, unlabel_dataset]                                                                # Create the final training dataset
+    # if args.exclude_unlabelled == False:
+    train_dataset = [synth_dataset, unlabel_dataset]    
+    # else:
+    #     train_dataset = synth_dataset                                                            # Create the final training dataset
     idx = 0
     indices = []
     for dataset in train_dataset:
@@ -163,6 +167,7 @@ if __name__ == "__main__":
         indices.append(temp)
 
     train_dataset = ConcatDataset(train_dataset)
+    print(args.batch_sizes, args.batch_size)
     batch_sampler = MultiStreamBatchSampler(args.subsets, indices, args.batch_sizes, args.batch_size)
     train_loader = DataLoader(train_dataset, batch_sampler=batch_sampler)
     valid_loader = DataLoader(valid_dataset, batch_size=args.batch_size)

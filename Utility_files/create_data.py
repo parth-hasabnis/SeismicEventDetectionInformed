@@ -144,7 +144,7 @@ class MultiStreamBatchSampler(Sampler):
         self.indices = indices
         self.class_batch_sizes = batch_sizes
 
-        assert len(classes) == len(indices) == len(batch_sizes)
+        assert len(classes) == len(indices) # == len(batch_sizes)
         self.class_num = len(classes)
         self.batch_size = batch_size
         assert batch_size == sum(batch_sizes)
@@ -158,7 +158,7 @@ class MultiStreamBatchSampler(Sampler):
     def __len__(self):
         val = np.inf
         for i in range(len(self.class_batch_sizes)):
-            val = min(val, (len(self.indices[i]) // self.class_batch_sizes[i ]))
+            val = min(val, (len(self.indices[i]) // self.class_batch_sizes[i]))
         return val
 
 
