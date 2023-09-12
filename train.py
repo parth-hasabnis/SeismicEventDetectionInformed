@@ -32,7 +32,7 @@ def adjust_learning_rate(optimizer, epoch, batch_num, batches_in_epoch, args):
         lr = m*epoch + c
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
-
+        
 def update_ema_variables(model, ema_model, alpha, global_step):
     """ Update the weights of the teacher model 
         Args: 
@@ -85,7 +85,7 @@ def train_one_epoch(train_loader, model, optimizer, c_epoch, ema_model=None, mas
         strong_pred, weak_pred = model(batch_input)
 
         loss = None
-        strong_class_loss = class_criterion(strong_pred[:args.batch_sizes[0]], target[:args.batch_sizes[0]])
+        strong_class_loss = class_criterion(strong_pred[:args.batch_sizes[0]], target[:args.batch_sizes[0]])            # Discard the outputs of unlabelled data
         strong_ema_class_loss = class_criterion(strong_pred_ema[:args.batch_sizes[0]], target[:args.batch_sizes[0]])
         if loss is not None:
             loss += strong_class_loss
@@ -111,20 +111,21 @@ def train_one_epoch(train_loader, model, optimizer, c_epoch, ema_model=None, mas
 if __name__ == "__main__":
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    save_path = "/Sep_10_2023"
+    save_path = "/Sep_12_2023"
     
-    SYNTH_PATH_1 = r"H:\EAPS\DATASET\Train\Strong_Dataset_v1"
-    SYNTH_PATH_2 = r"H:\EAPS\DATASET\Train\Strong_Dataset_v2"
-    UNLABEL_PATH_1 = r"H:\EAPS\DATASET\Train\Unlabel_Dataset_v1"
-    UNLABEL_PATH_2 = r"H:\EAPS\DATASET\Train\Unlabel_Dataset_v2"
+    SYNTH_PATH_1 = r"D:\Purdue\Thesis\eaps data\Fall 23\EAPS\DATASET\Train\Strong_Dataset_v1"
+    SYNTH_PATH_2 = r"D:\Purdue\Thesis\eaps data\Fall 23\EAPS\DATASET\Train\Strong_Dataset_v2"
+    UNLABEL_PATH_1 = r"D:\Purdue\Thesis\eaps data\Fall 23\EAPS\DATASET\Train\Unlabel_Dataset_v1"
+    UNLABEL_PATH_2 = r"DD:\Purdue\Thesis\eaps data\Fall 23\EAPS\DATASET\Train\Unlabel_Dataset_v2"
 
     kwargs = {"lr":0.001, "momentum":0.7, "nesterov":True, "epochs":50, "exclude_unlabelled":False,
-              "consistency":0, "batch_size":512, "labeled_batch_size":384,"batch_sizes":[384, 128],
-               "initial_lr":0.00001, "lr_rampup":10, "consistency_rampup":15, "weight_decay":0}
+              "consistency":1, "batch_size":800, "labeled_batch_size":600,"batch_sizes":[800, 200],
+               "initial_lr":0.00005, "lr_rampup":10, "consistency_rampup":15, "weight_decay":0}
+    args = Arguments(**kwargs)
     outfile = open("Results" + save_path + "/training_args.json", "w")
     json.dump(kwargs, outfile, indent=2)
     outfile.close()
-    args = Arguments(**kwargs)
+
     dataset_args = DatasetArgs()
 
     cnn_integration = False
@@ -202,6 +203,14 @@ if __name__ == "__main__":
     crnn = crnn.to(device)
     crnn_ema = crnn_ema.to(device)
 
+    # TEMP
+    crnn.load_state_dict(torch.load(f"D:\\Purdue\\Thesis\\eaps data\\Fall 23\\SED\\Results\\Sep_11_2023\\Checkpoints\\student_epoch_3.pt"))
+    crnn_ema.load_state_dict(torch.load(f"D:\\Purdue\\Thesis\\eaps data\\Fall 23\\SED\\Results\\Sep_11_2023\\Checkpoints\\teacher_epoch_3.pt" ))
+    # TEMP
+
+    crnn = crnn.to(device)
+    crnn_ema = crnn_ema.to(device)
+
     optim_kwargs = {"lr": args.lr, "betas": (0.9, 0.999)}
     optim = torch.optim.Adam(filter(lambda p: p.requires_grad, crnn.parameters()), **optim_kwargs)
     bce_loss = nn.BCELoss()
@@ -250,8 +259,8 @@ if __name__ == "__main__":
             pass
 
         torch.save(crnn.state_dict(), f"Results/{save_path}/Checkpoints/student_epoch_{epoch}.pt")
-        if args.e is not None:
-            torch.save(crnn_ema.state_dict(), f"Results/{save_path}/Checkpoints/teacher_epoch_{epoch}.pt")
+        # if args. is not None:
+        torch.save(crnn_ema.state_dict(), f"Results/{save_path}/Checkpoints/teacher_epoch_{epoch}.pt")
 
         if(eval_loss < bestLoss):
             torch.save(crnn.state_dict(), f"Results/{save_path}/Checkpoints/best_model_{epoch}.pt")

@@ -47,8 +47,12 @@ class SeismicEventDataset(Dataset):
 
     def __getitem__(self, idx):
 
-        file = self.data[idx]
-        st = opy.read(file)
+        try:
+            file = self.data[idx]
+            st = opy.read(file)
+        except:
+            file = r"D:\Purdue\Thesis\eaps data\Fall 23\EAPS\DATASET\Train\Strong_Dataset_mini\Strong Labels\Real\Background\Background1.sac"
+            st = opy.read(file)
         data = st[0].data
 
         fs = round(1/st[0].stats.delta)
@@ -62,8 +66,8 @@ class SeismicEventDataset(Dataset):
         num_spectrogram_bins = fft_length // 2 + 1
 
         spectrogram = librosa.feature.melspectrogram(y=data, sr=fs, n_fft=fft_length, win_length=window_length_samples,
-                                                     hop_length=hop_length_samples, fmin=self.args.mel_min_hz, fmax=self.args.mel_max_hz, 
-                                                     power=self.power, n_mels=self.args.mel_bands, htk=False)
+                                                    hop_length=hop_length_samples, fmin=self.args.mel_min_hz, fmax=self.args.mel_max_hz, 
+                                                    power=self.power, n_mels=self.args.mel_bands, htk=False)
         if self.normalize:
             spectrogram_norm = spectrogram/np.max(spectrogram)
             log_mel_spectrogram = np.log(spectrogram_norm + self.args.LOG_OFFSET)
@@ -108,6 +112,7 @@ class SeismicEventDataset(Dataset):
         log_mel_spectrogram = log_mel_spectrogram.T      
         log_mel_spectrogram = np.expand_dims(log_mel_spectrogram, axis=0)  
         return log_mel_spectrogram, strong_label
+        
 
 class TwoStreamBatchSampler(Sampler):
 
