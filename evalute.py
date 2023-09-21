@@ -44,7 +44,7 @@ def test_model(weights, save_path, dataset_path, dataset_type, save_spectrograms
     for batch, (X,y) in enumerate(eval_loader):
         X = X.to(device)
         y = y.to(device)
-        prediction = crnn(X)
+        prediction, _ = crnn(X)
     alpha = []
     beta = []
 
@@ -58,16 +58,16 @@ def test_model(weights, save_path, dataset_path, dataset_type, save_spectrograms
             error = metric.Errors()
             error_values = np.array(list(error.values()))
 
-    if(save_metrics):
-            fig, ax = plt.subplots(nrows=1, ncols=args.num_events, figsize=(15,6))
-            for axis in range(len(ax)):
-                ax[axis].bar(list(error.keys()),error_values[:,axis])
-                ax[axis].set_xlabel("Metric")
-                ax[axis].set_ylabel(f"Threshold = {threshold}")
-                ax[axis].set_title(f"{args.events[axis]}")
-                ax[axis].set_yticks(np.linspace(0,1,11))
-                plt.savefig(f"Results/{save_path}/Errors/theshold_{i}")
-            plt.close()
+            if(save_metrics):
+                fig, ax = plt.subplots(nrows=1, ncols=args.num_events, figsize=(15,6))
+                for axis in range(len(ax)):
+                    ax[axis].bar(list(error.keys()),error_values[:,axis])
+                    ax[axis].set_xlabel("Metric")
+                    ax[axis].set_ylabel(f"Threshold = {threshold}")
+                    ax[axis].set_title(f"{args.events[axis]}")
+                    ax[axis].set_yticks(np.linspace(0,1,11))
+                    plt.savefig(f"Results/{save_path}/Errors/theshold_{i}")
+                plt.close()
 
     if(plot_ROC):
         alpha = np.array(alpha)
@@ -131,10 +131,15 @@ def test_model(weights, save_path, dataset_path, dataset_type, save_spectrograms
 if __name__ == "__main__":
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    save_path = "/Jun_26_2023"                                              # path to save training and testing results
-    model_weights = "student_epoch_49.pt"                                    # model to evaluate
-    eval_dataset_path = r"../Data/DATASET/Test/Synthetic_mini"
-    eval_dataset_type = 'Synthetic'
+    save_path = "/Sep_12_2023"                                              # path to save training and testing results
+    model_weights = "student_epoch_4.pt"                                    # model to evaluate
+    # Real Dataset
+    # eval_dataset_path = r"D:\\Purdue\\Thesis\\eaps data\\Fall 23\\EAPS\\DATASET\\Test\\Test_dataset_v1\\Real"
+    # Synthetic Dataset to determine optimal thresholds
+    #  eval_dataset_path = r"H:\EAPS\DATASET\Test\Synthetic_mini_v1"
+    # Unlabel dataset to check generalizability
+    eval_dataset_path = r"D:\Purdue\Thesis\eaps data\Fall 23\EAPS\DATASET\Test\Test_dataset_v2"
+    eval_dataset_type = 'Unlabel'
 
     test_model(model_weights, save_path, eval_dataset_path, eval_dataset_type, 
-               save_spectrograms=True, plot_ROC=False, save_metrics=False, best_threshold=[0.1, 0.8])
+               save_spectrograms=True, plot_ROC=False, save_metrics=False    , best_threshold=[0.3, 0.4])

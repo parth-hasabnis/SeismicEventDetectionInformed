@@ -12,7 +12,7 @@ import itertools
 class SeismicEventDataset(Dataset):
     """
     Seismic Event Dataset Class
-    data_path: Path of Dataset files, each 10s long sampled at 1000Hz
+    data_path: Path of Dataset files, each 10s long sampled at 500Hz
     args: 
     """
 
@@ -24,9 +24,6 @@ class SeismicEventDataset(Dataset):
             raise Exception("Invalid Dataset type")
 
         self.type = type
-        self.power = power
-        self.normalize = normalize
-
         self.data = []
         self.labels = []
         
@@ -53,10 +50,15 @@ class SeismicEventDataset(Dataset):
         except:
             file = r"D:\Purdue\Thesis\eaps data\Fall 23\EAPS\DATASET\Train\Strong_Dataset_mini\Strong Labels\Real\Background\Background1.sac"
             st = opy.read(file)
-        data = st[0].data
+
+        fs = round(1/st[0].stats.delta)
+        if fs>self.args.sample_rate:
+            factor = round(fs/self.args.sample_rate)
+            st.decimate(factor)
 
         fs = round(1/st[0].stats.delta)
         sample_rate = fs
+        data = st[0].data
         win_len = round(len(st[0].data)/fs)
 
         window_length_samples = int(round(sample_rate * self.args.stft_window_seconds))
@@ -66,9 +68,8 @@ class SeismicEventDataset(Dataset):
         num_spectrogram_bins = fft_length // 2 + 1
 
         spectrogram = librosa.feature.melspectrogram(y=data, sr=fs, n_fft=fft_length, win_length=window_length_samples,
-                                                    hop_length=hop_length_samples, fmin=self.args.mel_min_hz, fmax=self.args.mel_max_hz, 
-                                                    power=self.power, n_mels=self.args.mel_bands, htk=False)
-        if self.normalize:
+                                                    hop_length=hop_length_samples, power=self.args.power, n_mels=self.args.mel_bands, htk=False)
+        if self.args.normalize:
             spectrogram_norm = spectrogram/np.max(spectrogram)
             log_mel_spectrogram = np.log(spectrogram_norm + self.args.LOG_OFFSET)
         else:
@@ -149,7 +150,7 @@ class MultiStreamBatchSampler(Sampler):
         self.indices = indices
         self.class_batch_sizes = batch_sizes
 
-        assert len(classes) == len(indices) # == len(batch_sizes)
+        # assert len(classes) == len(indices) # == len(batch_sizes)
         self.class_num = len(classes)
         self.batch_size = batch_size
         assert batch_size == sum(batch_sizes)

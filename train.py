@@ -12,6 +12,7 @@ from Utility_files.create_data import SeismicEventDataset, relabel_dataset, TwoS
 from torch.utils.data import random_split, ConcatDataset
 from models.CRNN import CRNN
 from Utility_files.utils import weights_init, sigmoid_rampup, linear_rampup, Arguments, DatasetArgs
+import traceback
 
 def adjust_learning_rate(optimizer, epoch, batch_num, batches_in_epoch, args):
     lr = args.lr
@@ -59,7 +60,7 @@ def train_one_epoch(train_loader, model, optimizer, c_epoch, ema_model=None, mas
         mask_strong: slice or list, mask the batch to get only the strong labeled data (used to calcultate the loss)
         rampup: bool, Whether or not to adjust the learning rate during training (params in config)
     """
-    class_criterion = nn.BCELoss()
+    class_criterion = nn.BCELoss()  
     consistency_criterion = nn.MSELoss()
 
     for i, (input, target) in enumerate(train_loader):
@@ -75,18 +76,20 @@ def train_one_epoch(train_loader, model, optimizer, c_epoch, ema_model=None, mas
         noise = 0.05*torch.rand(input.shape)
         ema_batch_input = noise + input
 
-        ema_batch_input = ema_batch_input.to(device)
-        batch_input = batch_input.to(device)
-        target = target.to(device)
+        ema_batch_input = ema_batch_input.to(device=device, dtype=torch.float32)
+        batch_input = batch_input.to(device=device, dtype=torch.float32)
+        target = target.to(device=device, dtype=torch.float32)
 
-        strong_pred_ema, weak_pred_ema = ema_model(ema_batch_input)
-        strong_pred_ema = strong_pred_ema.detach()
-        weak_pred_ema = weak_pred_ema.detach()
+        if ema_model is not None:
+            strong_pred_ema, weak_pred_ema = ema_model(ema_batch_input)
+            strong_pred_ema = strong_pred_ema.detach()
+            weak_pred_ema = weak_pred_ema.detach()
         strong_pred, weak_pred = model(batch_input)
 
         loss = None
         strong_class_loss = class_criterion(strong_pred[:args.batch_sizes[0]], target[:args.batch_sizes[0]])            # Discard the outputs of unlabelled data
-        strong_ema_class_loss = class_criterion(strong_pred_ema[:args.batch_sizes[0]], target[:args.batch_sizes[0]])
+        if ema_model is not None:
+            strong_ema_class_loss = class_criterion(strong_pred_ema[:args.batch_sizes[0]], target[:args.batch_sizes[0]])
         if loss is not None:
             loss += strong_class_loss
         else:
@@ -111,22 +114,27 @@ def train_one_epoch(train_loader, model, optimizer, c_epoch, ema_model=None, mas
 if __name__ == "__main__":
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    save_path = "/Sep_12_2023"
+    print(device)
+    save_path = "/Sep_21_2023"
     
-    SYNTH_PATH_1 = r"D:\Purdue\Thesis\eaps data\Fall 23\EAPS\DATASET\Train\Strong_Dataset_v1"
-    SYNTH_PATH_2 = r"D:\Purdue\Thesis\eaps data\Fall 23\EAPS\DATASET\Train\Strong_Dataset_v2"
-    UNLABEL_PATH_1 = r"D:\Purdue\Thesis\eaps data\Fall 23\EAPS\DATASET\Train\Unlabel_Dataset_v1"
-    UNLABEL_PATH_2 = r"DD:\Purdue\Thesis\eaps data\Fall 23\EAPS\DATASET\Train\Unlabel_Dataset_v2"
+    SYNTH_PATH = r"D:\\Purdue\\Thesis\\eaps data\\Fall 23\\EAPS\DATASET\\Train\\Strong_Dataset_v3"
+    UNLABEL_PATH = r"D:\\Purdue\\Thesis\\eaps data\\Fall 23\\EAPS\DATASET\\Train\\Unlabel_Dataset_v3"
 
-    kwargs = {"lr":0.001, "momentum":0.7, "nesterov":True, "epochs":50, "exclude_unlabelled":False,
-              "consistency":1, "batch_size":800, "labeled_batch_size":600,"batch_sizes":[800, 200],
-               "initial_lr":0.00005, "lr_rampup":10, "consistency_rampup":15, "weight_decay":0}
+    kwargs = {"lr":0.001, "momentum":0.7, "nesterov":True, "epochs":15, "exclude_unlabelled":True,
+              "consistency":1, "batch_size":800, "labeled_batch_size":600,"batch_sizes":[600, 200],
+               "initial_lr":0.00001, "lr_rampup":7, "consistency_rampup":15, "weight_decay":0}
     args = Arguments(**kwargs)
     outfile = open("Results" + save_path + "/training_args.json", "w")
     json.dump(kwargs, outfile, indent=2)
     outfile.close()
 
-    dataset_args = DatasetArgs()
+    dataset_kwargs = {"num_events":2, "max_mel_band":64, "stft_window_seconds":0.25, "stft_hop_seconds":0.1,
+                      "mel_bands": 64, "sample_rate":500, "power":2, "normalize": False, "mel_offset": 0 
+    }
+    outfile = open("Results" + save_path + "/dataset_args.json", "w")
+    json.dump(dataset_kwargs, outfile, indent=2)
+    outfile.close()
+    dataset_args = DatasetArgs(**dataset_kwargs)
 
     cnn_integration = False
     n_channel = 1
@@ -135,47 +143,48 @@ if __name__ == "__main__":
     # DATA
     #########
 
-    synth_dataset_1 = SeismicEventDataset(SYNTH_PATH_1, dataset_args, 'Synthetic')                                              # Load synthetic Dataset
-    synth_dataset_2 = SeismicEventDataset(SYNTH_PATH_2, dataset_args, 'Synthetic')
-    synth_dataset = ConcatDataset([synth_dataset_1, synth_dataset_2])
-    print("Labelled Dataset: %d", len(synth_dataset))
+    synth_dataset = SeismicEventDataset(SYNTH_PATH, dataset_args, 'Synthetic')                                              # Load synthetic Dataset
+    print("Labelled Dataset:", len(synth_dataset))
 
-    synth_len = round(len(synth_dataset)*0.8)       # total samples in synthetic training dataset
+    synth_len = round(len(synth_dataset)*0.7)       # total samples in synthetic training dataset
     synth_dataset, valid_dataset = random_split(synth_dataset, [synth_len, len(synth_dataset) - synth_len])         # Split the synthesic dataset to create a validation datase
 
-    # Fix
-    # if args.exclude_unlabelled == False:
-    unlabel_dataset_1 = SeismicEventDataset(UNLABEL_PATH_1, dataset_args, 'Unlabel')                                            # Load Unlabelled dataset
-    unlabel_dataset_2 = SeismicEventDataset(UNLABEL_PATH_2, dataset_args, 'Unlabel') 
-    unlabel_dataset = ConcatDataset([unlabel_dataset_1, unlabel_dataset_2])
-    print("UnLabelled Dataset: %d", len(unlabel_dataset))
+    if args.exclude_unlabelled == False:
+        unlabel_dataset = SeismicEventDataset(UNLABEL_PATH, dataset_args, 'Unlabel')                                            # Load Unlabelled dataset
+        print("UnLabelled Dataset:", len(unlabel_dataset))
 
     ### Test on small dummy data
     # synth_dataset, sm = random_split(synth_dataset, [1000, len(synth_dataset) - 1000]) 
     # if args.exclude_unlabelled == False:
-    # unlabel_dataset, sm = random_split(unlabel_dataset, [128, len(unlabel_dataset) - 128])
-    # xvalid_dataset, sm = random_split(valid_dataset, [128, len(valid_dataset) - 128]) 
+    #     unlabel_dataset, sm = random_split(unlabel_dataset, [128, len(unlabel_dataset) - 128])
+    # valid_dataset, sm = random_split(valid_dataset, [128, len(valid_dataset) - 128]) 
     ###
 
     # Fix
-    # if args.exclude_unlabelled == False:
-    train_dataset = [synth_dataset, unlabel_dataset]    
-    # else:
-    #     train_dataset = synth_dataset                                                            # Create the final training dataset
-    idx = 0
-    indices = []
-    for dataset in train_dataset:
-        temp = np.arange(idx, idx+len(dataset), 1)
-        idx = idx + len(dataset)
-        indices.append(temp)
+    if args.exclude_unlabelled == False:
+        train_dataset = [synth_dataset, unlabel_dataset]  
+        idx = 0
+        indices = []
+        for dataset in train_dataset:
+            temp = np.arange(idx, idx+len(dataset), 1)
+            idx = idx + len(dataset)
+            indices.append(temp) 
+        train_dataset = ConcatDataset(train_dataset)
+    else:
+        train_dataset = synth_dataset
+        indices = []
+        temp = np.arange(0, len(train_dataset))    
+        indices.append(temp)                                                        # Create the final training dataset
+        
 
-    train_dataset = ConcatDataset(train_dataset)
+
     print(args.batch_sizes, args.batch_size)
     batch_sampler = MultiStreamBatchSampler(args.subsets, indices, args.batch_sizes, args.batch_size)
-    train_loader = DataLoader(train_dataset, batch_sampler=batch_sampler)
-    valid_loader = DataLoader(valid_dataset, batch_size=args.batch_size)
+    train_loader = DataLoader(train_dataset, batch_sampler=batch_sampler, num_workers=2)
+    valid_loader = DataLoader(valid_dataset, batch_size=args.batch_size, num_workers=2)
     print(f"Length of training dataset {len(train_dataset)}")
     print(f"Length of validation dataset {len(valid_dataset)}")
+
 
     ########
     # MODEL
@@ -198,18 +207,13 @@ if __name__ == "__main__":
 
     crnn = CRNN(**crnn_kwargs)
     crnn.apply(weights_init)
-    crnn_ema = CRNN(**crnn_kwargs)
-    crnn_ema.apply(weights_init)
+    if args.exclude_unlabelled == False: 
+        crnn_ema = CRNN(**crnn_kwargs)
+        crnn_ema.apply(weights_init)
+        crnn_ema = crnn_ema.to(device)
+    else:
+        crnn_ema = None
     crnn = crnn.to(device)
-    crnn_ema = crnn_ema.to(device)
-
-    # TEMP
-    crnn.load_state_dict(torch.load(f"D:\\Purdue\\Thesis\\eaps data\\Fall 23\\SED\\Results\\Sep_11_2023\\Checkpoints\\student_epoch_3.pt"))
-    crnn_ema.load_state_dict(torch.load(f"D:\\Purdue\\Thesis\\eaps data\\Fall 23\\SED\\Results\\Sep_11_2023\\Checkpoints\\teacher_epoch_3.pt" ))
-    # TEMP
-
-    crnn = crnn.to(device)
-    crnn_ema = crnn_ema.to(device)
 
     optim_kwargs = {"lr": args.lr, "betas": (0.9, 0.999)}
     optim = torch.optim.Adam(filter(lambda p: p.requires_grad, crnn.parameters()), **optim_kwargs)
@@ -225,27 +229,28 @@ if __name__ == "__main__":
     ########
     # TRAIN
     ########
-    for epoch in range(args.epochs):
-        print(f"Starting Epoch {epoch}")
-        crnn.train()
-        crnn_ema.train()
+    try: 
+        for epoch in range(args.epochs):
+            print(f"Starting Epoch {epoch}")
+            crnn.train()
+            if args.exclude_unlabelled == False:
+                crnn_ema.train()
 
-        loss_value = train_one_epoch(train_loader, crnn, optim, epoch, ema_model=crnn_ema, rampup=True)
-        print(f"Epoch {epoch}, Training Loss = {loss_value}")
-        trainLossLog[epoch] = loss_value
+            loss_value = train_one_epoch(train_loader, crnn, optim, epoch, ema_model=crnn_ema, rampup=True)
+            print(f"Epoch {epoch}, Training Loss = {loss_value}")
+            trainLossLog[epoch] = loss_value
 
-        for param_group in optim.param_groups:
-            lrVal = param_group['lr'] 
-            lrLog[epoch] = lrVal
+            for param_group in optim.param_groups:
+                lrVal = param_group['lr'] 
+                lrLog[epoch] = lrVal
 
     ###########
     # VALIDATE
     ###########
-        try:
             eval_loss = 0
             for i, (X, y) in enumerate(valid_loader):
-                X = X.to(device)
-                y = y.to(device)
+                X = X.to(device=device, dtype=torch.float32)
+                y = y.to(device=device, dtype=torch.float32)
                 with torch.inference_mode():
                     pred_strong, pred_weak = crnn(X)
                     loss = bce_loss(pred_strong, y)
@@ -255,23 +260,23 @@ if __name__ == "__main__":
             validateLossLog[epoch] = eval_loss
 
             print(f"Epoch {epoch}, Training Loss = {loss_value}, Validation Loss  = {eval_loss}")
-        except:
-            pass
 
-        torch.save(crnn.state_dict(), f"Results/{save_path}/Checkpoints/student_epoch_{epoch}.pt")
-        # if args. is not None:
-        torch.save(crnn_ema.state_dict(), f"Results/{save_path}/Checkpoints/teacher_epoch_{epoch}.pt")
+            torch.save(crnn.state_dict(), f"Results/{save_path}/Checkpoints/student_epoch_{epoch}.pt")
+            if args.exclude_unlabelled == False:
+                torch.save(crnn_ema.state_dict(), f"Results/{save_path}/Checkpoints/teacher_epoch_{epoch}.pt")
 
-        if(eval_loss < bestLoss):
-            torch.save(crnn.state_dict(), f"Results/{save_path}/Checkpoints/best_model_{epoch}.pt")
-            bestLoss = eval_loss
-    
-    loss_metrics = {"train":list(trainLossLog), 
-                    "valid":list(validateLossLog), 
-                    "epochs":list(epochsLog),
-                    "learning_rate":list(lrLog)}
-    with open(f"Results/{save_path}/Checkpoints/Loss_metrics.json", "w") as outfile:
-        json.dump(loss_metrics, outfile, indent=2)
+            if(eval_loss < bestLoss):
+                torch.save(crnn.state_dict(), f"Results/{save_path}/Checkpoints/best_model_{epoch}.pt")
+                bestLoss = eval_loss
+    except Exception as e: 
+        print(traceback.format_exc())
+    finally:
+        loss_metrics = {"train":list(trainLossLog), 
+                        "valid":list(validateLossLog), 
+                        "epochs":list(epochsLog),
+                        "learning_rate":list(lrLog)}
+        with open(f"Results/{save_path}/Checkpoints/Loss_metrics.json", "w") as outfile:
+            json.dump(loss_metrics, outfile, indent=2)
 
 
     

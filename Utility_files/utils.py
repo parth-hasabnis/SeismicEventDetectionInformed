@@ -69,23 +69,34 @@ class Arguments():
             self.labeled_batch_size = labeled_batch_size
             assert batch_size == sum(batch_sizes)
             self.batch_sizes = batch_sizes
+        
+
 
 
 
 class DatasetArgs():
+    """
+    num_events: number of events in one file. Default=2
+    LOG_OFFSET: offset to division by 0. Default = 0.001
+    STFT Window seconds: seconds per window of STFT. Default=0.25
+    STFT Hop seconds: seconds for hop = (window seconds - overlap seconds). Default=0.1
+    Mel bands = number of mel bands. Default=64
+    """
 
-    def __init__(self, num_events=2, LOG_OFFSET = 0.001, max_mel_band = 64,
-                 stft_window_seconds = 0.25, stft_hop_seconds = 0.1,
-                 mel_min_hz = 1, mel_bands = 128, mel_max_hz = 500) -> None:
+    def __init__(self, num_events=2, LOG_OFFSET = 0.001, max_mel_band = 64, mel_offset=0,
+                 stft_window_seconds = 0.25, stft_hop_seconds = 0.1, power = 2, normalize = False,
+                 mel_bands = 128, sample_rate = 500) -> None:
         
         self.num_events = num_events
         self.LOG_OFFSET = LOG_OFFSET
         self.max_mel_band = max_mel_band # Max mel band of interest
         self.stft_window_seconds = stft_window_seconds # original 0.25
         self.stft_hop_seconds = stft_hop_seconds   # original 0.1
-        self.mel_min_hz = mel_min_hz
         self.mel_bands = mel_bands            # original 64
-        self.mel_max_hz = mel_max_hz
+        self.sample_rate = sample_rate
+        self.power = power
+        self.normalize = normalize
+        self.mel_offset = mel_offset
 
 class TestArguments():
 
