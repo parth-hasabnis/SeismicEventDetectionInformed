@@ -70,10 +70,6 @@ class Arguments():
             assert batch_size == sum(batch_sizes)
             self.batch_sizes = batch_sizes
         
-
-
-
-
 class DatasetArgs():
     """
     num_events: number of events in one file. Default=2
@@ -83,7 +79,7 @@ class DatasetArgs():
     Mel bands = number of mel bands. Default=64
     """
 
-    def __init__(self, num_events=2, LOG_OFFSET = 0.001, max_mel_band = 64, mel_offset=0,
+    def __init__(self, num_events=2, LOG_OFFSET = 0.0001, max_mel_band = 64, mel_offset=0,
                  stft_window_seconds = 0.25, stft_hop_seconds = 0.1, power = 2, normalize = False,
                  mel_bands = 128, sample_rate = 500) -> None:
         

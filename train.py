@@ -61,6 +61,7 @@ def train_one_epoch(train_loader, model, optimizer, c_epoch, ema_model=None, mas
         rampup: bool, Whether or not to adjust the learning rate during training (params in config)
     """
     class_criterion = nn.BCELoss()  
+
     consistency_criterion = nn.MSELoss()
 
     for i, (input, target) in enumerate(train_loader):
@@ -86,22 +87,26 @@ def train_one_epoch(train_loader, model, optimizer, c_epoch, ema_model=None, mas
             weak_pred_ema = weak_pred_ema.detach()
         strong_pred, weak_pred = model(batch_input)
 
+        strong_pred_trim = strong_pred[:args.batch_sizes[0]]
+        weak_pred_trim = weak_pred[args.batch_sizes[0]:]
+
         loss = None
-        strong_class_loss = class_criterion(strong_pred[:args.batch_sizes[0]], target[:args.batch_sizes[0]])            # Discard the outputs of unlabelled data
-        if ema_model is not None:
-            strong_ema_class_loss = class_criterion(strong_pred_ema[:args.batch_sizes[0]], target[:args.batch_sizes[0]])
+        if mask_weak == None:
+            strong_class_loss = class_criterion(strong_pred[:args.batch_sizes[0]], target[:args.batch_sizes[0]])            # Discard the outputs of unlabelled data
+            if ema_model is not None:
+                strong_ema_class_loss = class_criterion(strong_pred_ema[:args.batch_sizes[0]], target[:args.batch_sizes[0]])
         if loss is not None:
             loss += strong_class_loss
         else:
             loss = strong_class_loss
-
         if ema_model is not None:
-            consistency_weight = args.consistency * sigmoid_rampup(c_epoch, args.consistency_rampup)
-            consistency_loss_strong = consistency_weight * consistency_criterion(strong_pred, strong_pred_ema)
+            if mask_strong == None:
+                consistency_weight = args.consistency * sigmoid_rampup(c_epoch, args.consistency_rampup)
+                consistency_loss_weak = consistency_weight * consistency_criterion(weak_pred[args.batch_sizes[0]:], weak_pred_ema[args.batch_sizes[0]:])
             if loss is not None:
-                loss += consistency_loss_strong
+                loss += consistency_loss_weak
             else:
-                loss = consistency_loss_strong
+                loss = consistency_loss_weak
 
         optimizer.zero_grad()
         loss.backward()
@@ -115,13 +120,13 @@ if __name__ == "__main__":
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(device)
-    save_path = "/Sep_21_2023"
+    save_path = "/Sep_22_2023_2"
     
     SYNTH_PATH = r"D:\\Purdue\\Thesis\\eaps data\\Fall 23\\EAPS\DATASET\\Train\\Strong_Dataset_v3"
-    UNLABEL_PATH = r"D:\\Purdue\\Thesis\\eaps data\\Fall 23\\EAPS\DATASET\\Train\\Unlabel_Dataset_v3"
+    UNLABEL_PATH = r"D:\\Purdue\\Thesis\\eaps data\\Fall 23\\EAPS\DATASET\\Train\\Unlabel_Dataset_v2"
 
     kwargs = {"lr":0.001, "momentum":0.7, "nesterov":True, "epochs":15, "exclude_unlabelled":True,
-              "consistency":1, "batch_size":800, "labeled_batch_size":600,"batch_sizes":[600, 200],
+              "consistency":20, "batch_size":800, "labeled_batch_size":600,"batch_sizes":[600, 200],
                "initial_lr":0.00001, "lr_rampup":7, "consistency_rampup":15, "weight_decay":0}
     args = Arguments(**kwargs)
     outfile = open("Results" + save_path + "/training_args.json", "w")
@@ -129,7 +134,7 @@ if __name__ == "__main__":
     outfile.close()
 
     dataset_kwargs = {"num_events":2, "max_mel_band":64, "stft_window_seconds":0.25, "stft_hop_seconds":0.1,
-                      "mel_bands": 64, "sample_rate":500, "power":2, "normalize": False, "mel_offset": 0 
+                      "mel_bands": 64, "sample_rate":500, "power":2, "normalize": False, "mel_offset": 2 
     }
     outfile = open("Results" + save_path + "/dataset_args.json", "w")
     json.dump(dataset_kwargs, outfile, indent=2)
@@ -154,13 +159,14 @@ if __name__ == "__main__":
         print("UnLabelled Dataset:", len(unlabel_dataset))
 
     ### Test on small dummy data
-    # synth_dataset, sm = random_split(synth_dataset, [1000, len(synth_dataset) - 1000]) 
-    # if args.exclude_unlabelled == False:
-    #     unlabel_dataset, sm = random_split(unlabel_dataset, [128, len(unlabel_dataset) - 128])
-    # valid_dataset, sm = random_split(valid_dataset, [128, len(valid_dataset) - 128]) 
+    '''
+    synth_dataset, sm = random_split(synth_dataset, [args.labeled_batch_size, len(synth_dataset) - args.labeled_batch_size]) 
+    if args.exclude_unlabelled == False:
+        unlabel_dataset, sm = random_split(unlabel_dataset, [args.batch_sizes[1], len(unlabel_dataset) - args.batch_sizes[1]])
+    valid_dataset, sm = random_split(valid_dataset, [args.batch_sizes[1], len(valid_dataset) - args.batch_sizes[1]]) 
+    '''
     ###
 
-    # Fix
     if args.exclude_unlabelled == False:
         train_dataset = [synth_dataset, unlabel_dataset]  
         idx = 0
@@ -176,9 +182,6 @@ if __name__ == "__main__":
         temp = np.arange(0, len(train_dataset))    
         indices.append(temp)                                                        # Create the final training dataset
         
-
-
-    print(args.batch_sizes, args.batch_size)
     batch_sampler = MultiStreamBatchSampler(args.subsets, indices, args.batch_sizes, args.batch_size)
     train_loader = DataLoader(train_dataset, batch_sampler=batch_sampler, num_workers=2)
     valid_loader = DataLoader(valid_dataset, batch_size=args.batch_size, num_workers=2)
@@ -224,7 +227,7 @@ if __name__ == "__main__":
     validateLossLog = np.zeros((args.epochs))
     lrLog = np.zeros((args.epochs))
     epochsLog = np.linspace(1, args.epochs, args.epochs)
-    bestLoss = 0
+    bestLoss = torch.tensor(float('inf'))
 
     ########
     # TRAIN
@@ -266,7 +269,7 @@ if __name__ == "__main__":
                 torch.save(crnn_ema.state_dict(), f"Results/{save_path}/Checkpoints/teacher_epoch_{epoch}.pt")
 
             if(eval_loss < bestLoss):
-                torch.save(crnn.state_dict(), f"Results/{save_path}/Checkpoints/best_model_{epoch}.pt")
+                torch.save(crnn.state_dict(), f"Results/{save_path}/Checkpoints/best_model.pt")
                 bestLoss = eval_loss
     except Exception as e: 
         print(traceback.format_exc())

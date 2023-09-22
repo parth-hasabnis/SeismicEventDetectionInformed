@@ -17,7 +17,11 @@ def test_model(weights, save_path, dataset_path, dataset_type, save_spectrograms
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     TEST_PATH = dataset_path    # Set dataset path 
     args = TestArguments()            # Use standard parameters
-    dataset_args = DatasetArgs()
+
+    f = open("Results" + save_path + "/dataset_args.json")
+    dataset_kwargs = json.loads(f.read())
+    f.close()
+    dataset_args = DatasetArgs(**dataset_kwargs)
 
     seed = 75
     torch.manual_seed(seed)
@@ -131,15 +135,20 @@ def test_model(weights, save_path, dataset_path, dataset_type, save_spectrograms
 if __name__ == "__main__":
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    save_path = "/Sep_12_2023"                                              # path to save training and testing results
-    model_weights = "student_epoch_4.pt"                                    # model to evaluate
+    save_path = "/Sep_22_2023"                                              # path to save training and testing results
+    f = open("Results" + save_path + "/Checkpoints/Loss_metrics.json")
+    train_metrics = json.loads(f.read())
+    f.close()
+    # model_weights = "student_epoch_4.pt"                                    # model to evaluate
+
+
     # Real Dataset
     # eval_dataset_path = r"D:\\Purdue\\Thesis\\eaps data\\Fall 23\\EAPS\\DATASET\\Test\\Test_dataset_v1\\Real"
     # Synthetic Dataset to determine optimal thresholds
     #  eval_dataset_path = r"H:\EAPS\DATASET\Test\Synthetic_mini_v1"
     # Unlabel dataset to check generalizability
-    eval_dataset_path = r"D:\Purdue\Thesis\eaps data\Fall 23\EAPS\DATASET\Test\Test_dataset_v2"
-    eval_dataset_type = 'Unlabel'
+    # eval_dataset_path = r"D:\Purdue\Thesis\eaps data\Fall 23\EAPS\DATASET\Test\Test_dataset_v2"
+    # eval_dataset_type = 'Unlabel'
 
-    test_model(model_weights, save_path, eval_dataset_path, eval_dataset_type, 
-               save_spectrograms=True, plot_ROC=False, save_metrics=False    , best_threshold=[0.3, 0.4])
+    # test_model(model_weights, save_path, eval_dataset_path, eval_dataset_type, 
+    #            save_spectrograms=True, plot_ROC=False, save_metrics=False    , best_threshold=[0.3, 0.4])

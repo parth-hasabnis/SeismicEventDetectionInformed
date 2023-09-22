@@ -5,7 +5,7 @@ import os
 import json
 import obspy as opy
 import numpy as np
-import librosa
+import librosa  
 
 import itertools
 
@@ -69,6 +69,8 @@ class SeismicEventDataset(Dataset):
 
         spectrogram = librosa.feature.melspectrogram(y=data, sr=fs, n_fft=fft_length, win_length=window_length_samples,
                                                     hop_length=hop_length_samples, power=self.args.power, n_mels=self.args.mel_bands, htk=False)
+        if self.args.mel_offset !=0:
+            spectrogram[:self.args.mel_offset, :] = 0
         if self.args.normalize:
             spectrogram_norm = spectrogram/np.max(spectrogram)
             log_mel_spectrogram = np.log(spectrogram_norm + self.args.LOG_OFFSET)
