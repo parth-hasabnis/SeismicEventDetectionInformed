@@ -1,4 +1,5 @@
 import torch
+from sklearn.metrics import accuracy_score, f1_score, precision_score, confusion_matrix
 
 class metrics():
 
@@ -33,12 +34,14 @@ class metrics():
 
         for i in range(self.n_events):
             prediction = self.prediction[i].flatten()
+            prediction = prediction.cpu()
             target = self.target[i].flatten()
+            target = target.cpu()
             FALSE_ALARM_COUNT = 0
             MISS_COUNT = 0
             TRUE_POSITIVE_COUNT = 0
             TRUE_NEGATIVE_COUNT = 0
-
+            '''
             for (p,t) in zip(prediction, target):
                 if t == 1 and p == 1:
                     TRUE_POSITIVE_COUNT = TRUE_POSITIVE_COUNT + 1
@@ -48,12 +51,14 @@ class metrics():
                     MISS_COUNT = MISS_COUNT + 1
                 if t == 0 and p == 1:
                     FALSE_ALARM_COUNT = FALSE_ALARM_COUNT + 1
+            '''     
+            (TRUE_NEGATIVE_COUNT, FALSE_ALARM_COUNT, MISS_COUNT ,TRUE_POSITIVE_COUNT) = confusion_matrix(target, prediction).ravel()
             
-                TYPE_1 = FALSE_ALARM_COUNT/(FALSE_ALARM_COUNT + TRUE_NEGATIVE_COUNT + 0.00001)
-                TYPE_2 = MISS_COUNT/(MISS_COUNT + TRUE_POSITIVE_COUNT + 0.00001)
-                PRECISION = TRUE_POSITIVE_COUNT/(TRUE_POSITIVE_COUNT + FALSE_ALARM_COUNT + 0.00001)
-                RECALL = TRUE_POSITIVE_COUNT/(TRUE_POSITIVE_COUNT + MISS_COUNT + 0.00001)     
-                ACCURACY = TRUE_POSITIVE_COUNT + TRUE_NEGATIVE_COUNT/(TRUE_POSITIVE_COUNT + TRUE_NEGATIVE_COUNT + FALSE_ALARM_COUNT + MISS_COUNT)
+            TYPE_1 = FALSE_ALARM_COUNT/(FALSE_ALARM_COUNT + TRUE_NEGATIVE_COUNT + 0.00001)
+            TYPE_2 = MISS_COUNT/(MISS_COUNT + TRUE_POSITIVE_COUNT + 0.00001)
+            PRECISION = TRUE_POSITIVE_COUNT/(TRUE_POSITIVE_COUNT + FALSE_ALARM_COUNT + 0.00001)
+            RECALL = TRUE_POSITIVE_COUNT/(TRUE_POSITIVE_COUNT + MISS_COUNT + 0.00001)     
+            ACCURACY = TRUE_POSITIVE_COUNT + TRUE_NEGATIVE_COUNT/(TRUE_POSITIVE_COUNT + TRUE_NEGATIVE_COUNT + FALSE_ALARM_COUNT + MISS_COUNT)
             metrics['type 1'].append(TYPE_1)
             metrics['type 2'].append(TYPE_2)
             metrics['precsion'].append(PRECISION)
