@@ -38,6 +38,8 @@ class SeismicEventDataset(Dataset):
 
         print(f"Labels: {len(self.labels)}")
         print(f"Data: {len(self.data)}")
+        if (len(self.data) == 0):
+            raise Exception("Dataset is Empty")
 
     def __len__(self):
         return(len(self.data))

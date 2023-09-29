@@ -66,8 +66,32 @@ class metrics():
 
         return metrics
     
-    def get_thresholded_predictions(self):
+    def get_thresholded_predictions(self, min_event_length):
         """
         Return the thresholded predictions 
         """
-        return self.origPredictions
+        assert len(min_event_length) == self.n_events
+        predictions  = self.origPredictions.permute(0, 2, 1)
+        predictions = predictions.cpu().detach().numpy()
+        predictions = predictions.astype(int)
+        summ=0
+        for k, pred in enumerate(predictions):
+            for j, channel in enumerate(pred):
+                for i, elem in enumerate(channel):
+                    if elem != 0:
+                        summ = summ + elem
+                        if i == predictions.shape[2]-1:
+                            if summ<min_event_length[j]:
+                                predictions[k][j][i-summ+1:i+1] = 0
+                    else:
+                        if summ:
+                            if summ<min_event_length[j]:
+                                # print(k,j,i-summ, i)
+                                predictions[k][j][i-summ:i] = 0
+                        summ = 0
+                summ = 0
+            summ = 0
+
+        new_predictions = torch.Tensor(predictions).float().permute(0,2,1)
+        return(new_predictions)
+    
