@@ -16,7 +16,7 @@ class SeismicEventDataset(Dataset):
     args: 
     """
 
-    def __init__(self, data_path, args, type, power=1, normalize=True):
+    def __init__(self, data_path, args, type):
         self.data_path = data_path
         self.args = args
 
@@ -71,6 +71,10 @@ class SeismicEventDataset(Dataset):
 
         spectrogram = librosa.feature.melspectrogram(y=data, sr=fs, n_fft=fft_length, win_length=window_length_samples,
                                                     hop_length=hop_length_samples, power=self.args.power, n_mels=self.args.mel_bands, htk=False)
+        if self.args.eval:
+            orig_spectrogram = spectrogram
+            orig_spectrogram = np.log(orig_spectrogram + self.args.LOG_OFFSET)
+            orig_spectrogram = orig_spectrogram[:self.args.max_mel_band,:]
         if self.args.mel_offset !=0:
             spectrogram[:self.args.mel_offset, :] = 0
         if self.args.normalize:
@@ -80,6 +84,8 @@ class SeismicEventDataset(Dataset):
             log_mel_spectrogram = np.log(spectrogram + self.args.LOG_OFFSET)
             
         log_mel_spectrogram = log_mel_spectrogram[:self.args.max_mel_band,:]
+        if self.args.eval:
+            assert np.all(log_mel_spectrogram.shape == orig_spectrogram.shape)
 
         len_data_s = len(data)/fs
         num_windows = log_mel_spectrogram.shape[1]
@@ -116,7 +122,15 @@ class SeismicEventDataset(Dataset):
 
         log_mel_spectrogram = log_mel_spectrogram.T      
         log_mel_spectrogram = np.expand_dims(log_mel_spectrogram, axis=0)  
-        return log_mel_spectrogram, strong_label
+        log_mel_spectrogram = log_mel_spectrogram.astype(np.float32)
+        if self.args.eval:
+            orig_spectrogram = orig_spectrogram.T      
+            orig_spectrogram = np.expand_dims(orig_spectrogram, axis=0)  
+            orig_spectrogram = orig_spectrogram.astype(np.float32)
+            assert np.all(log_mel_spectrogram.shape == orig_spectrogram.shape)
+            return orig_spectrogram, log_mel_spectrogram, strong_label
+        else:
+            return log_mel_spectrogram, strong_label
         
 
 class TwoStreamBatchSampler(Sampler):

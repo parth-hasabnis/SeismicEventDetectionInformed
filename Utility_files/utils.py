@@ -81,7 +81,7 @@ class DatasetArgs():
 
     def __init__(self, num_events=2, LOG_OFFSET = 0.0001, max_mel_band = 64, mel_offset=0,
                  stft_window_seconds = 0.25, stft_hop_seconds = 0.1, power = 2, normalize = False,
-                 mel_bands = 128, sample_rate = 500) -> None:
+                 mel_bands = 128, sample_rate = 500, eval=False) -> None:
         
         self.num_events = num_events
         self.LOG_OFFSET = LOG_OFFSET
@@ -93,6 +93,7 @@ class DatasetArgs():
         self.power = power
         self.normalize = normalize
         self.mel_offset = mel_offset
+        self.eval = eval
 
 class TestArguments():
 

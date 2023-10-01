@@ -13,6 +13,8 @@ from torch.utils.data import random_split, ConcatDataset
 from models.CRNN import CRNN
 from Utility_files.utils import weights_init, sigmoid_rampup, linear_rampup, Arguments, DatasetArgs
 import traceback
+from os import makedirs
+from os.path import exists
 
 def adjust_learning_rate(optimizer, epoch, batch_num, batches_in_epoch, args):
     lr = args.lr
@@ -47,7 +49,7 @@ def update_ema_variables(model, ema_model, alpha, global_step):
     for ema_params, params in zip(ema_model.parameters(), model.parameters()):
         ema_params.data.mul_(alpha).add_(1 - alpha, params.data)
 
-def train_one_epoch(train_loader, model, optimizer, c_epoch, ema_model=None, mask_weak=None, mask_strong=None, rampup=None):
+def train_one_epoch(train_loader, model, optimizer, c_epoch, ema_model=None, mask_weak=None, mask_strong=None, rampup=None, consistency_type="weak"):
     """ One epoch of a Mean Teacher model
     Args:
         train_loader: torch.utils.data.DataLoader, iterator of training batches for an epoch.
@@ -60,9 +62,11 @@ def train_one_epoch(train_loader, model, optimizer, c_epoch, ema_model=None, mas
         mask_strong: slice or list, mask the batch to get only the strong labeled data (used to calcultate the loss)
         rampup: bool, Whether or not to adjust the learning rate during training (params in config)
     """
-    class_criterion = nn.BCELoss()  
-
-    consistency_criterion = nn.MSELoss()
+    class_criterion = nn.BCELoss()
+    if consistency_type == "strong":  
+        consistency_criterion = nn.MSELoss()
+    elif consistency_type == "weak":
+        consistency_criterion = nn.BCELoss()
 
     for i, (input, target) in enumerate(train_loader):
         global_step = c_epoch * len(train_loader) + i # total number of batches trained
@@ -120,13 +124,20 @@ if __name__ == "__main__":
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(device)
-    save_path = "/Sep_22_2023_2"
+    save_path = "/Sep_28_2023"
+
+    if(not exists("Results" + save_path)):
+        makedirs("Results" + save_path)
+    if(not exists("Results" + save_path + "/Checkpoints")):
+        makedirs("Results" + save_path + "/Checkpoints")
+    
     
     SYNTH_PATH = r"D:\\Purdue\\Thesis\\eaps data\\Fall 23\\EAPS\DATASET\\Train\\Strong_Dataset_v3"
-    UNLABEL_PATH = r"D:\\Purdue\\Thesis\\eaps data\\Fall 23\\EAPS\DATASET\\Train\\Unlabel_Dataset_v2"
+    UNLABEL_PATH_2 = r"D:\\Purdue\\Thesis\\eaps data\\Fall 23\\EAPS\DATASET\\Train\\Unlabel_Dataset_v2"
+    UNLABEL_PATH_1 = r"D:\\Purdue\\Thesis\\eaps data\\Fall 23\\EAPS\DATASET\\Train\\Unlabel_Dataset_v1"
 
-    kwargs = {"lr":0.001, "momentum":0.7, "nesterov":True, "epochs":15, "exclude_unlabelled":True,
-              "consistency":20, "batch_size":800, "labeled_batch_size":600,"batch_sizes":[600, 200],
+    kwargs = {"lr":0.001, "momentum":0.7, "nesterov":True, "epochs":20, "exclude_unlabelled":False,
+              "consistency":20, "batch_size":750, "labeled_batch_size":500,"batch_sizes":[500, 250],
                "initial_lr":0.00001, "lr_rampup":7, "consistency_rampup":15, "weight_decay":0}
     args = Arguments(**kwargs)
     outfile = open("Results" + save_path + "/training_args.json", "w")
@@ -134,7 +145,7 @@ if __name__ == "__main__":
     outfile.close()
 
     dataset_kwargs = {"num_events":2, "max_mel_band":64, "stft_window_seconds":0.25, "stft_hop_seconds":0.1,
-                      "mel_bands": 64, "sample_rate":500, "power":2, "normalize": False, "mel_offset": 2 
+                      "mel_bands": 64, "sample_rate":500, "power":2, "normalize": False, "mel_offset": 0 
     }
     outfile = open("Results" + save_path + "/dataset_args.json", "w")
     json.dump(dataset_kwargs, outfile, indent=2)
@@ -151,11 +162,13 @@ if __name__ == "__main__":
     synth_dataset = SeismicEventDataset(SYNTH_PATH, dataset_args, 'Synthetic')                                              # Load synthetic Dataset
     print("Labelled Dataset:", len(synth_dataset))
 
-    synth_len = round(len(synth_dataset)*0.7)       # total samples in synthetic training dataset
+    synth_len = round(len(synth_dataset)*0.8)       # total samples in synthetic training dataset
     synth_dataset, valid_dataset = random_split(synth_dataset, [synth_len, len(synth_dataset) - synth_len])         # Split the synthesic dataset to create a validation datase
 
     if args.exclude_unlabelled == False:
-        unlabel_dataset = SeismicEventDataset(UNLABEL_PATH, dataset_args, 'Unlabel')                                            # Load Unlabelled dataset
+        unlabel_dataset_1 = SeismicEventDataset(UNLABEL_PATH_1, dataset_args, 'Unlabel')                                            # Load Unlabelled dataset
+        unlabel_dataset_2 = SeismicEventDataset(UNLABEL_PATH_2, dataset_args, 'Unlabel')
+        unlabel_dataset = ConcatDataset([unlabel_dataset_1, unlabel_dataset_2])
         print("UnLabelled Dataset:", len(unlabel_dataset))
 
     ### Test on small dummy data
