@@ -90,7 +90,7 @@ def test_model(weights, save_path, dataset_path, dataset_type, save_spectrograms
                     ax[axis].set_ylabel(f"Threshold = {threshold}")
                     ax[axis].set_title(f"{args.events[axis]}")
                     ax[axis].set_yticks(np.linspace(0,1,11))
-                    plt.savefig(f"Results/{save_path}/Errors/theshold_{i}")
+                    plt.savefig(f"Results/{save_path}/Errors/{model_weights}_threshold_{threshold}.png")
                 plt.close()
 
     if(plot_ROC):
@@ -107,8 +107,8 @@ def test_model(weights, save_path, dataset_path, dataset_type, save_spectrograms
             ax[axis].set_xlim([0,1])
             ax[axis].set_ylim([0,1])
             ax[axis].set_title(f"{args.events[axis]}")
-        plt.title("Region of Convergence")
-        plt.savefig(f"Results/{save_path}/Errors/ROC")
+        fig.suptitle("Receiver Operating Characteristic")
+        plt.savefig(f"Results/{save_path}/Errors/ROC_{model_weights}.png")
 
     if(save_spectrograms):
         print("Saving spectrograms")  
@@ -155,20 +155,21 @@ def test_model(weights, save_path, dataset_path, dataset_type, save_spectrograms
 if __name__ == "__main__":
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    save_path = "/Sep_22_2023_2"                                              # path to save training and testing results
+    save_path = "/Oct_4_2023"                                              # path to save training and testing results
     f = open("Results" + save_path + "/Checkpoints/Loss_metrics.json")
     train_metrics = json.loads(f.read())
     f.close()
-    model_weights = "best_model.pt"                                    # model to evaluate
+    model_weights = "student_epoch_19.pt"                                    # model to evaluate
 
     # Real Dataset
     # eval_dataset_path = r"D:\\Purdue\\Thesis\\eaps data\\Fall 23\\EAPS\\DATASET\\Test\\Test_dataset_v1\\Real"
     # Synthetic Dataset to determine optimal thresholds
-    eval_dataset_path = r"D:\\Purdue\\Thesis\\eaps data\\Fall 23\\EAPS\DATASET\\Test\\Test_dataset_v2\\Unlabel\\"
+    eval_dataset_path = r"D:\\Purdue\\Thesis\\eaps data\\Fall 23\\EAPS\DATASET\\Test\\Test_dataset_v3\\Real"
+    eval_dataset_type = 'Synthetic'
     # Unlabel dataset to check generalizability
-    # eval_dataset_path = r"D:\Purdue\Thesis\eaps data\Fall 23\EAPS\DATASET\Test\Test_dataset_v2"
+    eval_dataset_path = r"D:\\Purdue\\Thesis\\eaps data\\Fall 23\\EAPS\DATASET\\Test\\Test_dataset_v2\\Unlabel"
     eval_dataset_type = 'Unlabel'
 
     test_model(model_weights, save_path, eval_dataset_path, eval_dataset_type, 
                 save_spectrograms=True, plot_ROC=False, save_metrics=False,
-                best_threshold=[0.6, 0.7], min_event_length=[15,20])
+                best_threshold=[0.5, 0.3], min_event_length=[10,25])

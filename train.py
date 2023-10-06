@@ -49,19 +49,20 @@ def update_ema_variables(model, ema_model, alpha, global_step):
     for ema_params, params in zip(ema_model.parameters(), model.parameters()):
         ema_params.data.mul_(alpha).add_(1 - alpha, params.data)
 
-def train_one_epoch(train_loader, model, optimizer, c_epoch, ema_model=None, mask_weak=None, mask_strong=None, rampup=None, consistency_type="weak"):
+def train_one_epoch(train_loader, model, optimizer, c_epoch, ema_model=None, mask_weak=None, mask_strong=None, rampup=None):
     """ One epoch of a Mean Teacher model
     Args:
         train_loader: torch.utils.data.DataLoader, iterator of training batches for an epoch.
-            Should return a tuple: ((teacher input, student input), labels)
+            Should return a tuple: (student input, labels)
         model: torch.Module, model to be trained, should return a weak and strong prediction
         optimizer: torch.Module, optimizer used to train the model
         c_epoch: int, the current epoch of training
         ema_model: torch.Module, student model, should return a weak and strong prediction
-        mask_weak: slice or list, mask the batch to get only the weak labeled data (used to calculate the loss)
-        mask_strong: slice or list, mask the batch to get only the strong labeled data (used to calcultate the loss)
+        mask_weak: bool, mask the batch to get only the weak labeled data (used to calculate the loss)
+        mask_strong: bool, mask the batch to get only the strong labeled data (used to calcultate the loss)
         rampup: bool, Whether or not to adjust the learning rate during training (params in config)
     """
+    consistency_type = args.consistency_type
     class_criterion = nn.BCELoss()
     if consistency_type == "strong":  
         consistency_criterion = nn.MSELoss()
@@ -95,22 +96,25 @@ def train_one_epoch(train_loader, model, optimizer, c_epoch, ema_model=None, mas
         weak_pred_trim = weak_pred[args.batch_sizes[0]:]
 
         loss = None
-        if mask_weak == None:
+        if mask_strong == None:
             strong_class_loss = class_criterion(strong_pred[:args.batch_sizes[0]], target[:args.batch_sizes[0]])            # Discard the outputs of unlabelled data
             if ema_model is not None:
                 strong_ema_class_loss = class_criterion(strong_pred_ema[:args.batch_sizes[0]], target[:args.batch_sizes[0]])
-        if loss is not None:
-            loss += strong_class_loss
-        else:
-            loss = strong_class_loss
-        if ema_model is not None:
-            if mask_strong == None:
-                consistency_weight = args.consistency * sigmoid_rampup(c_epoch, args.consistency_rampup)
-                consistency_loss_weak = consistency_weight * consistency_criterion(weak_pred[args.batch_sizes[0]:], weak_pred_ema[args.batch_sizes[0]:])
             if loss is not None:
-                loss += consistency_loss_weak
+                loss += strong_class_loss
             else:
-                loss = consistency_loss_weak
+                loss = strong_class_loss
+        if ema_model is not None:
+            if mask_weak == None:
+                consistency_weight = args.consistency * sigmoid_rampup(c_epoch, args.consistency_rampup)
+                if consistency_type == "weak":
+                    consistency_loss = consistency_weight * consistency_criterion(weak_pred[args.batch_sizes[0]:], weak_pred_ema[args.batch_sizes[0]:])
+                elif consistency_type == "strong":
+                    consistency_loss = consistency_weight * consistency_criterion(strong_pred[args.batch_sizes[0]:], strong_pred_ema[args.batch_sizes[0]:])
+            if loss is not None:
+                loss += consistency_loss
+            else:
+                loss = consistency_loss
 
         optimizer.zero_grad()
         loss.backward()
@@ -124,7 +128,9 @@ if __name__ == "__main__":
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(device)
-    save_path = "/Sep_28_2023"
+    save_path = "/Oct_5_2023"
+    retrain_dict = {"retrain":False, "epoch":2
+    }
 
     if(not exists("Results" + save_path)):
         makedirs("Results" + save_path)
@@ -136,9 +142,9 @@ if __name__ == "__main__":
     UNLABEL_PATH_2 = r"D:\\Purdue\\Thesis\\eaps data\\Fall 23\\EAPS\DATASET\\Train\\Unlabel_Dataset_v2"
     UNLABEL_PATH_1 = r"D:\\Purdue\\Thesis\\eaps data\\Fall 23\\EAPS\DATASET\\Train\\Unlabel_Dataset_v1"
 
-    kwargs = {"lr":0.001, "momentum":0.7, "nesterov":True, "epochs":20, "exclude_unlabelled":False,
+    kwargs = {"lr":0.001, "momentum":0.7, "nesterov":True, "epochs":25, "exclude_unlabelled":False,
               "consistency":20, "batch_size":750, "labeled_batch_size":500,"batch_sizes":[500, 250],
-               "initial_lr":0.00001, "lr_rampup":7, "consistency_rampup":15, "weight_decay":0}
+               "initial_lr":0.00001, "lr_rampup":7, "consistency_rampup":15,"consistency_type":"strong"}
     args = Arguments(**kwargs)
     outfile = open("Results" + save_path + "/training_args.json", "w")
     json.dump(kwargs, outfile, indent=2)
@@ -221,11 +227,18 @@ if __name__ == "__main__":
 
     pooling_time_ratio = 4  # 2 * 2
 
+    start = 0
+    if(retrain_dict["retrain"]):
+        start = retrain_dict["epoch"]
     crnn = CRNN(**crnn_kwargs)
     crnn.apply(weights_init)
+    if(retrain_dict["retrain"]):
+        crnn.load_state_dict(torch.load(f"Results/{save_path}/Checkpoints/student_epoch_{start}.pt"))
     if args.exclude_unlabelled == False: 
         crnn_ema = CRNN(**crnn_kwargs)
         crnn_ema.apply(weights_init)
+        if(retrain_dict["retrain"]):
+            crnn_ema.load_state_dict(torch.load(f"Results/{save_path}/Checkpoints/teacher_epoch_{start}.pt"))
         crnn_ema = crnn_ema.to(device)
     else:
         crnn_ema = None
@@ -242,11 +255,14 @@ if __name__ == "__main__":
     epochsLog = np.linspace(1, args.epochs, args.epochs)
     bestLoss = torch.tensor(float('inf'))
 
+    if(retrain_dict["retrain"]):
+        pass
+
     ########
     # TRAIN
     ########
     try: 
-        for epoch in range(args.epochs):
+        for epoch in range(start, args.epochs):
             print(f"Starting Epoch {epoch}")
             crnn.train()
             if args.exclude_unlabelled == False:
@@ -283,6 +299,7 @@ if __name__ == "__main__":
 
             if(eval_loss < bestLoss):
                 torch.save(crnn.state_dict(), f"Results/{save_path}/Checkpoints/best_model.pt")
+                print(f"Best epoch: {epoch}")
                 bestLoss = eval_loss
     except Exception as e: 
         print(traceback.format_exc())

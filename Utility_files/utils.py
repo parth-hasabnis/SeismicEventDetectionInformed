@@ -41,7 +41,7 @@ def sigmoid_rampup(current, rampup_length):
     
 class Arguments():
     def __init__(self, momentum, nesterov, epochs:int, consistency, batch_size=64, exclude_unlabelled=False,
-                 labeled_batch_size=48, batch_sizes=[48, 16],consistency_type='kl', lr=0.01, initial_lr=0.005, lr_rampup = 7, ema_decay=0.999, 
+                 labeled_batch_size=48, batch_sizes=[48, 16],consistency_type="weak", lr=0.01, initial_lr=0.005, lr_rampup = 7, ema_decay=0.999, 
                  consistency_rampup=5, early_stop=0.5, subsets=["synthetic", "unlabel"], weight_decay=0.999):
         super().__init__()
 
