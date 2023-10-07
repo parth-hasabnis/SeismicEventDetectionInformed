@@ -127,20 +127,21 @@ def train_one_epoch(train_loader, model, optimizer, c_epoch, ema_model=None, mas
 if __name__ == "__main__":
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(device)
+    print("Running on:", device)
     save_path = "/Oct_5_2023"
-    retrain_dict = {"retrain":False, "epoch":2
-    }
-
+    retrain_dict = {"retrain":False, "epoch":2}
+    print(save_path)
+    exit(0)
     if(not exists("Results" + save_path)):
         makedirs("Results" + save_path)
     if(not exists("Results" + save_path + "/Checkpoints")):
         makedirs("Results" + save_path + "/Checkpoints")
     
     
-    SYNTH_PATH = r"D:\\Purdue\\Thesis\\eaps data\\Fall 23\\EAPS\DATASET\\Train\\Strong_Dataset_v3"
-    UNLABEL_PATH_2 = r"D:\\Purdue\\Thesis\\eaps data\\Fall 23\\EAPS\DATASET\\Train\\Unlabel_Dataset_v2"
-    UNLABEL_PATH_1 = r"D:\\Purdue\\Thesis\\eaps data\\Fall 23\\EAPS\DATASET\\Train\\Unlabel_Dataset_v1"
+    SYNTH_PATH = [r"D:\\Purdue\\Thesis\\eaps data\\Fall 23\\EAPS\DATASET\\Train\\Strong_Dataset_v3"]
+
+    UNLABEL_PATH = [r"D:\\Purdue\\Thesis\\eaps data\\Fall 23\\EAPS\DATASET\\Train\\Unlabel_Dataset_v2", 
+                    r"D:\\Purdue\\Thesis\\eaps data\\Fall 23\\EAPS\DATASET\\Train\\Unlabel_Dataset_v1"]
 
     kwargs = {"lr":0.001, "momentum":0.7, "nesterov":True, "epochs":25, "exclude_unlabelled":False,
               "consistency":20, "batch_size":750, "labeled_batch_size":500,"batch_sizes":[500, 250],
@@ -151,8 +152,7 @@ if __name__ == "__main__":
     outfile.close()
 
     dataset_kwargs = {"num_events":2, "max_mel_band":64, "stft_window_seconds":0.25, "stft_hop_seconds":0.1,
-                      "mel_bands": 64, "sample_rate":500, "power":2, "normalize": False, "mel_offset": 0 
-    }
+                      "mel_bands": 64, "sample_rate":500, "power":2, "normalize": False, "mel_offset": 0}
     outfile = open("Results" + save_path + "/dataset_args.json", "w")
     json.dump(dataset_kwargs, outfile, indent=2)
     outfile.close()
@@ -164,7 +164,11 @@ if __name__ == "__main__":
     #########
     # DATA
     #########
-
+    label_datasets = []
+    for path in SYNTH_PATH:
+        dataset = SeismicEventDataset(path, dataset_args, 'Synthetic')
+        label_datasets.append(dataset)
+    synth_dataset = ConcatDataset(label_datasets)
     synth_dataset = SeismicEventDataset(SYNTH_PATH, dataset_args, 'Synthetic')                                              # Load synthetic Dataset
     print("Labelled Dataset:", len(synth_dataset))
 
@@ -172,9 +176,11 @@ if __name__ == "__main__":
     synth_dataset, valid_dataset = random_split(synth_dataset, [synth_len, len(synth_dataset) - synth_len])         # Split the synthesic dataset to create a validation datase
 
     if args.exclude_unlabelled == False:
-        unlabel_dataset_1 = SeismicEventDataset(UNLABEL_PATH_1, dataset_args, 'Unlabel')                                            # Load Unlabelled dataset
-        unlabel_dataset_2 = SeismicEventDataset(UNLABEL_PATH_2, dataset_args, 'Unlabel')
-        unlabel_dataset = ConcatDataset([unlabel_dataset_1, unlabel_dataset_2])
+        unlabel_datasets = []
+        for path in UNLABEL_PATH:
+            dataset = SeismicEventDataset(path, dataset_args, 'Unlabel')
+            unlabel_datasets.append(dataset)
+        unlabel_dataset = ConcatDataset(unlabel_datasets)
         print("UnLabelled Dataset:", len(unlabel_dataset))
 
     ### Test on small dummy data

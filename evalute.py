@@ -9,8 +9,7 @@ from Utility_files.metrics import metrics
 from Utility_files.create_data import SeismicEventDataset
 from Utility_files.utils import DatasetArgs, TestArguments
 from models.CRNN import CRNN
-import librosa
-import librosa.display
+# import librosa.display    # librosa can sometimes cause conflicts with matplotlib
 from os.path import exists
 from os import makedirs
 

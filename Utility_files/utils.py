@@ -40,14 +40,13 @@ def sigmoid_rampup(current, rampup_length):
         return float(np.exp(-5.0 * phase * phase))
     
 class Arguments():
-    def __init__(self, momentum, nesterov, epochs:int, consistency, batch_size=64, exclude_unlabelled=False,
-                 labeled_batch_size=48, batch_sizes=[48, 16],consistency_type="weak", lr=0.01, initial_lr=0.005, lr_rampup = 7, ema_decay=0.999, 
-                 consistency_rampup=5, early_stop=0.5, subsets=["synthetic", "unlabel"], weight_decay=0.999):
+    def __init__(self, momentum=0.7, nesterov=True, epochs=15, consistency=20, batch_size=64, exclude_unlabelled=True,
+                 labeled_batch_size=48, batch_sizes=[48, 16],consistency_type="strong", lr=0.001, initial_lr=0.00001, lr_rampup = 7, ema_decay=0.999, 
+                 consistency_rampup=15, subsets=["synthetic", "unlabel"]):
         super().__init__()
 
         self.lr = lr
         self.momentum = momentum
-        self.weight_decay = weight_decay
         self.nesterov = nesterov
         self.epochs = epochs
         self.consistency_type = consistency_type
@@ -56,7 +55,6 @@ class Arguments():
         self.consistency = consistency
         self.ema_decay = ema_decay
         self.consistency_rampup = consistency_rampup
-        self.early_stop = early_stop
         self.subsets = subsets
         self.exclude_unlabelled = exclude_unlabelled
         self.events = ['Vehicle', 'Pedestrian']
