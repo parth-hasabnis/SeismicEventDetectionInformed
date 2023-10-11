@@ -3,6 +3,7 @@ __pycache__/
 
 # File to test functions before implementing them
 test_stuff.ipynb
+test_stuff.py
 
 # Outputs and Results
 Results/

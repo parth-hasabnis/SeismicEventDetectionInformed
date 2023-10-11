@@ -1,0 +1,17 @@
+{
+    "save_path": "Oct_11_2023",
+    "SYNTH_PATH": ["D:\\Purdue\\Thesis\\eaps data\\Fall 23\\EAPS\\DATASET\\Train\\Strong_Dataset_v3"],
+    "UNLABEL_PATH": ["D:\\Purdue\\Thesis\\eaps data\\Fall 23\\EAPS\\DATASET\\Train\\Unlabel_Dataset_v2", 
+                     "D:\\Purdue\\Thesis\\eaps data\\Fall 23\\EAPS\\DATASET\\Train\\Unlabel_Dataset_v1"],
+
+    "training_args":{   "lr":0.001, "momentum":0.7, "nesterov":"True", "epochs":25, "exclude_unlabelled":"False",
+                        "consistency":20, "batch_size":750, "labeled_batch_size":500,"batch_sizes":[500, 250],
+                        "initial_lr":0.00001, "lr_rampup":7, "consistency_rampup":15,"consistency_type":"strong",
+                        "ema_decay":0.999, "subsets":["synthetic", "unlabel"], "events":["Vehicle", "Pedestrian"]},
+
+    "dataset_args":{    "num_events":2, "max_mel_band":64, "stft_window_seconds":0.25, "stft_hop_seconds":0.1,
+                        "mel_bands": 64, "sample_rate":500, "power":2, "normalize": "False", "mel_offset": 0,
+                        "eval":"False", "LOG_OFFSET": 0.0001},
+
+    "retrain_args": {   "retrain":"False", "epoch":2}
+}

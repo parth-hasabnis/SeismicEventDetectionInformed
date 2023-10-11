@@ -42,7 +42,7 @@ def sigmoid_rampup(current, rampup_length):
 class Arguments():
     def __init__(self, momentum=0.7, nesterov=True, epochs=15, consistency=20, batch_size=64, exclude_unlabelled=True,
                  labeled_batch_size=48, batch_sizes=[48, 16],consistency_type="strong", lr=0.001, initial_lr=0.00001, lr_rampup = 7, ema_decay=0.999, 
-                 consistency_rampup=15, subsets=["synthetic", "unlabel"]):
+                 consistency_rampup=15, subsets=["synthetic", "unlabel"], events=['Vehicle', 'Pedestrian']):
         super().__init__()
 
         self.lr = lr
@@ -57,7 +57,7 @@ class Arguments():
         self.consistency_rampup = consistency_rampup
         self.subsets = subsets
         self.exclude_unlabelled = exclude_unlabelled
-        self.events = ['Vehicle', 'Pedestrian']
+        self.events = events
 
         self.batch_size = batch_size
         if exclude_unlabelled == True:           
@@ -92,6 +92,8 @@ class DatasetArgs():
         self.normalize = normalize
         self.mel_offset = mel_offset
         self.eval = eval
+
+        assert self.max_mel_band <= self.mel_bands
 
 class TestArguments():
 

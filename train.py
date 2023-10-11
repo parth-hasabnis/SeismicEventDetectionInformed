@@ -1,20 +1,17 @@
-# Train any model with any parameters
-# Constructed using CRNN as reference, but can be modified 
-# Date of creation - Sep 08 2023
-
 import torch
 from torch import nn
 from torch.utils.data import DataLoader
 import numpy as np
 import matplotlib.pyplot as plt
 import json
-from Utility_files.create_data import SeismicEventDataset, relabel_dataset, TwoStreamBatchSampler, MultiStreamBatchSampler
+from Utility_files.create_data import SeismicEventDataset, MultiStreamBatchSampler
 from torch.utils.data import random_split, ConcatDataset
 from models.CRNN import CRNN
-from Utility_files.utils import weights_init, sigmoid_rampup, linear_rampup, Arguments, DatasetArgs
+from Utility_files.utils import weights_init, sigmoid_rampup, Arguments, DatasetArgs
 import traceback
 from os import makedirs
 from os.path import exists
+import argparse
 
 def adjust_learning_rate(optimizer, epoch, batch_num, batches_in_epoch, args):
     lr = args.lr
@@ -126,12 +123,23 @@ def train_one_epoch(train_loader, model, optimizer, c_epoch, ema_model=None, mas
 
 if __name__ == "__main__":
 
+    parser = argparse.ArgumentParser(description="Train a CRNN model for Seismic Event Detection")
+    parser.add_argument("-f", "--file", help="Path for arguments file", default="default_arguments.json")
+    args = parser.parse_args()
+    args_file = args.file
+    with open(args_file) as f:
+        data = json.load(f)
+
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("Running on:", device)
-    save_path = "/Oct_5_2023"
-    retrain_dict = {"retrain":False, "epoch":2}
-    print(save_path)
-    exit(0)
+
+    save_path = data["save_path"]
+    SYNTH_PATH = data["SYNTH_PATH"]
+    UNLABEL_PATH = data["UNLABEL_PATH"]
+    kwargs = data["training_args"]
+    dataset_kwargs = data["dataset_args"]
+    retrain_dict = data["retrain_args"]
+
     if(not exists("Results" + save_path)):
         makedirs("Results" + save_path)
     if(not exists("Results" + save_path + "/Checkpoints")):
