@@ -124,7 +124,7 @@ def train_one_epoch(train_loader, model, optimizer, c_epoch, ema_model=None, mas
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Train a CRNN model for Seismic Event Detection")
-    parser.add_argument("-f", "--file", help="Path for arguments file", default="default_arguments.json")
+    parser.add_argument("-f", "--file", help="Path for arguments file", default=".\default_arguments.json")
     args = parser.parse_args()
     args_file = args.file
     with open(args_file) as f:
@@ -138,36 +138,15 @@ if __name__ == "__main__":
     UNLABEL_PATH = data["UNLABEL_PATH"]
     kwargs = data["training_args"]
     dataset_kwargs = data["dataset_args"]
-    retrain_dict = data["retrain_args"]
+    continue_args = data["continue_training_args"]
 
     if(not exists("Results" + save_path)):
         makedirs("Results" + save_path)
     if(not exists("Results" + save_path + "/Checkpoints")):
         makedirs("Results" + save_path + "/Checkpoints")
     
-    
-    SYNTH_PATH = [r"D:\\Purdue\\Thesis\\eaps data\\Fall 23\\EAPS\DATASET\\Train\\Strong_Dataset_v3"]
-
-    UNLABEL_PATH = [r"D:\\Purdue\\Thesis\\eaps data\\Fall 23\\EAPS\DATASET\\Train\\Unlabel_Dataset_v2", 
-                    r"D:\\Purdue\\Thesis\\eaps data\\Fall 23\\EAPS\DATASET\\Train\\Unlabel_Dataset_v1"]
-
-    kwargs = {"lr":0.001, "momentum":0.7, "nesterov":True, "epochs":25, "exclude_unlabelled":False,
-              "consistency":20, "batch_size":750, "labeled_batch_size":500,"batch_sizes":[500, 250],
-               "initial_lr":0.00001, "lr_rampup":7, "consistency_rampup":15,"consistency_type":"strong"}
     args = Arguments(**kwargs)
-    outfile = open("Results" + save_path + "/training_args.json", "w")
-    json.dump(kwargs, outfile, indent=2)
-    outfile.close()
-
-    dataset_kwargs = {"num_events":2, "max_mel_band":64, "stft_window_seconds":0.25, "stft_hop_seconds":0.1,
-                      "mel_bands": 64, "sample_rate":500, "power":2, "normalize": False, "mel_offset": 0}
-    outfile = open("Results" + save_path + "/dataset_args.json", "w")
-    json.dump(dataset_kwargs, outfile, indent=2)
-    outfile.close()
     dataset_args = DatasetArgs(**dataset_kwargs)
-
-    cnn_integration = False
-    n_channel = 1
 
     #########
     # DATA
@@ -177,7 +156,6 @@ if __name__ == "__main__":
         dataset = SeismicEventDataset(path, dataset_args, 'Synthetic')
         label_datasets.append(dataset)
     synth_dataset = ConcatDataset(label_datasets)
-    synth_dataset = SeismicEventDataset(SYNTH_PATH, dataset_args, 'Synthetic')                                              # Load synthetic Dataset
     print("Labelled Dataset:", len(synth_dataset))
 
     synth_len = round(len(synth_dataset)*0.8)       # total samples in synthetic training dataset
@@ -215,6 +193,7 @@ if __name__ == "__main__":
         temp = np.arange(0, len(train_dataset))    
         indices.append(temp)                                                        # Create the final training dataset
         
+    print(args.batch_sizes)
     batch_sampler = MultiStreamBatchSampler(args.subsets, indices, args.batch_sizes, args.batch_size)
     train_loader = DataLoader(train_dataset, batch_sampler=batch_sampler, num_workers=2)
     valid_loader = DataLoader(valid_dataset, batch_size=args.batch_size, num_workers=2)
@@ -227,6 +206,8 @@ if __name__ == "__main__":
     ########
 
     n_layers = 6
+    cnn_integration = False
+    n_channel = 1
     crnn_kwargs = {"n_in_channel": n_channel, "nclass": dataset_args.num_events, "attention": True, "n_RNN_cell": 128,
                     "n_layers_RNN": 2,
                     "activation": "glu",
@@ -235,23 +216,23 @@ if __name__ == "__main__":
                     "kernel_size": n_layers * [3], "padding": n_layers * [1], "stride": n_layers * [1],
                     "nb_filters": [16,  32,  64,  128,  128, 128],
                     "pooling": [[2, 2], [2, 2], [1, 2], [1, 2], [1, 2], [1,2]]}
-    outfile = open("Results" + save_path + "/crnnn_args.json", "w")
+    outfile = open("Results" + save_path + "/crnn_args.json", "w")
     json.dump(crnn_kwargs, outfile, indent=2)
     outfile.close()
 
     pooling_time_ratio = 4  # 2 * 2
 
     start = 0
-    if(retrain_dict["retrain"]):
-        start = retrain_dict["epoch"]
+    if(continue_args["continue"]):
+        start = continue_args["epoch"]
     crnn = CRNN(**crnn_kwargs)
     crnn.apply(weights_init)
-    if(retrain_dict["retrain"]):
+    if(continue_args["continue"]):
         crnn.load_state_dict(torch.load(f"Results/{save_path}/Checkpoints/student_epoch_{start}.pt"))
     if args.exclude_unlabelled == False: 
         crnn_ema = CRNN(**crnn_kwargs)
         crnn_ema.apply(weights_init)
-        if(retrain_dict["retrain"]):
+        if(continue_args["continue"]):
             crnn_ema.load_state_dict(torch.load(f"Results/{save_path}/Checkpoints/teacher_epoch_{start}.pt"))
         crnn_ema = crnn_ema.to(device)
     else:
@@ -269,9 +250,9 @@ if __name__ == "__main__":
     epochsLog = np.linspace(1, args.epochs, args.epochs)
     bestLoss = torch.tensor(float('inf'))
 
-    if(retrain_dict["retrain"]):
+    if(continue_args["continue"]):
         pass
-
+    
     ########
     # TRAIN
     ########

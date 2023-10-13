@@ -7,3 +7,9 @@ test_stuff.py
 
 # Outputs and Results
 Results/
+
+# Training arguments
+training_arguments.json
+
+# Test tracker sheet
+Testing.xlsx
