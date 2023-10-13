@@ -193,7 +193,6 @@ if __name__ == "__main__":
         temp = np.arange(0, len(train_dataset))    
         indices.append(temp)                                                        # Create the final training dataset
         
-    print(args.batch_sizes)
     batch_sampler = MultiStreamBatchSampler(args.subsets, indices, args.batch_sizes, args.batch_size)
     train_loader = DataLoader(train_dataset, batch_sampler=batch_sampler, num_workers=2)
     valid_loader = DataLoader(valid_dataset, batch_size=args.batch_size, num_workers=2)
