@@ -161,7 +161,7 @@ class TwoStreamBatchSampler(Sampler):
     
 class MultiStreamBatchSampler(Sampler):
 
-    def __init__(self, classes:list, indices:list, batch_sizes:list, batch_size:int) -> None:
+    def __init__(self, classes:list, indices:list, batch_sizes:list) -> None:
         # super().__init__()
 
         self.classes = classes
@@ -170,8 +170,7 @@ class MultiStreamBatchSampler(Sampler):
 
         # assert len(classes) == len(indices) # == len(batch_sizes)
         self.class_num = len(classes)
-        self.batch_size = batch_size
-        assert batch_size == sum(batch_sizes)
+        self.batch_size = sum(batch_sizes)
 
     def __iter__(self):
         iterators = []

@@ -1,0 +1,8 @@
+{
+    "eval_dataset_path":"D:\\Purdue\\Thesis\\eaps data\\Fall 23\\EAPS\\DATASET\\Test\\Test_dataset_v3",
+    "eval_dataset_type":"Synthetic",
+    "model_weights":"best_model.pt",
+    "save_path":"\\default",
+    "best_threshold":[0.5, 0.1],
+    "min_event_length":[10, 25]
+}
