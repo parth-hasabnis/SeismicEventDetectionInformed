@@ -116,12 +116,12 @@ def test_model(weights, save_path, dataset_path, dataset_type, save_spectrograms
                 plt.close()
             print("Done Saving")
     error = np.array(error)
-    if(save_metrics):
-        for i, threshold in enumerate(thresholds):
-            error_values[i, :, 0] = error[i, :, 1]/ (error[i, :, 1] + error[i, :, 0] + 0.0001)           # False Alarm
-            error_values[i, :, 1] = error[i, :, 2]/ (error[i, :, 2] + error[i, :, 3] + 0.0001)           # Miss
-            error_values[i, :, 2] = error[i, :, 3]/ (error[i, :, 3] + error[i, :, 1] + 0.0001)           # Precision
-            error_values[i, :, 3] = error[i, :, 3]/ (error[i, :, 3] + error[i, :, 2] + 0.0001)           # Recall
+    for i, threshold in enumerate(thresholds):
+        error_values[i, :, 0] = error[i, :, 1]/ (error[i, :, 1] + error[i, :, 0] + 0.0001)           # False Alarm
+        error_values[i, :, 1] = error[i, :, 2]/ (error[i, :, 2] + error[i, :, 3] + 0.0001)           # Miss
+        error_values[i, :, 2] = error[i, :, 3]/ (error[i, :, 3] + error[i, :, 1] + 0.0001)           # Precision
+        error_values[i, :, 3] = error[i, :, 3]/ (error[i, :, 3] + error[i, :, 2] + 0.0001)           # Recall
+        if(save_metrics):
             fig, ax = plt.subplots(nrows=1, ncols=dataset_kwargs["num_events"], figsize=(15,6))
             for axis in range(len(ax)):
                 ax[axis].bar(X_axis,error_values[i,axis,:])
@@ -154,6 +154,9 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     parser = argparse.ArgumentParser(description="Evaluate a CRNN model for Seismic Event Detection")
     parser.add_argument("-f", "--file", help="Path for arguments file", default=".\default_eval_arguments.json")
+    parser.add_argument("-r", "--roc", action="store_false", help="plot ROC. Default: True")
+    parser.add_argument("-m", "--metrics", action="store_false", help="save metrics. Default: True")
+    parser.add_argument("-p", "--plot", action="store_true", help="save output spectrograms. Default: False")
     args = parser.parse_args()
     args_file = args.file
     with open(args_file) as f:
@@ -166,6 +169,10 @@ if __name__ == "__main__":
     best_threshold = data["best_threshold"]
     min_event_length = data["min_event_length"]
 
+    save_spectrograms = args.plot
+    plot_ROC = args.roc
+    save_metrics = args.metrics
+
     test_model(model_weights, save_path, eval_dataset_path, eval_dataset_type, 
-                save_spectrograms=False, plot_ROC=True, save_metrics=True,
+                save_spectrograms=save_spectrograms, plot_ROC=plot_ROC, save_metrics=save_metrics,
                 best_threshold=best_threshold, min_event_length=min_event_length)
