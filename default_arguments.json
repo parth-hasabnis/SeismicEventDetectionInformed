@@ -11,7 +11,7 @@
                         "mask_synth": false, "mask_unlabel":false},
 
     "dataset_args":{    "num_events":2, "max_mel_band":64, "stft_window_seconds":0.25, "stft_hop_seconds":0.1,
-                        "mel_bands": 64, "sample_rate":500, "power":2, "normalize": false, "mel_offset": 0,
+                        "mel_bands": 64, "sample_rate":500, "power":2, "normalize": false, "mel_offset": 4,
                         "eval":false, "LOG_OFFSET": 0.0001},
 
     "continue_training_args": {"continue":false, "epoch":0}

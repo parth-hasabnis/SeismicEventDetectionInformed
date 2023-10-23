@@ -13,3 +13,7 @@ training_arguments.json
 
 # Test tracker sheet
 Testing.xlsx
+
+# Parameters
+eval_arguments.json
+training_arguments.json

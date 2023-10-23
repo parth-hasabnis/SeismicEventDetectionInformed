@@ -4,5 +4,6 @@
     "model_weights":"best_model.pt",
     "save_path":"\\default",
     "best_threshold":[0.5, 0.1],
-    "min_event_length":[10, 25]
+    "min_event_length":[10, 25],
+    "output_path":"\\default"
 }

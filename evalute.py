@@ -14,17 +14,18 @@ from os.path import exists
 from os import makedirs
 import argparse
 
-def test_model(weights, save_path, dataset_path, dataset_type, save_spectrograms: bool, plot_ROC: bool, save_metrics:bool, best_threshold=[0.5, 0.5], min_event_length=[1,2.5]):
+def test_model(weights, save_path, dataset_path, dataset_type, output_path,
+               save_spectrograms: bool, plot_ROC: bool, save_metrics:bool, best_threshold=[0.5, 0.5], min_event_length=[1,2.5]):
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(device)
     TEST_PATH = dataset_path    # Set dataset path 
     args = TestArguments()            # Use standard parameters
 
-    if(not exists("Results" + save_path + "/Output Plots")):
-        makedirs("Results" + save_path + "/Output Plots")
-    if(not exists("Results" + save_path + "/Errors")):
-        makedirs("Results" + save_path + "/Errors")
+    if(not exists("Results" + output_path + "/Output Plots")):
+        makedirs("Results" + output_path + "/Output Plots")
+    if(not exists("Results" + output_path + "/Errors")):
+        makedirs("Results" + output_path + "/Errors")
 
 
     f = open("Results" + save_path + "/training_args.json")  
@@ -112,7 +113,7 @@ def test_model(weights, save_path, dataset_path, dataset_type, save_spectrograms
                 ax.set_ylabel("Mel bands")
                 ax.set_yticks(np.arange(0, dataset_kwargs["max_mel_band"], 2))
                 plt.legend(["P Vehicle", "P Pedestrian", "T Vehicle", "T Pedestrian"])
-                plt.savefig(f"Results/{save_path}/Output plots/{dataset_type}_{weights}_{batch}_{i}.png")  
+                plt.savefig(f"Results/{output_path}/Output plots/{dataset_type}_{weights}_{batch}_{i}.png")  
                 plt.close()
             print("Done Saving")
     error = np.array(error)
@@ -129,7 +130,7 @@ def test_model(weights, save_path, dataset_path, dataset_type, save_spectrograms
                 ax[axis].set_ylabel(f"Threshold = {threshold}")
                 ax[axis].set_title(events[axis])
                 ax[axis].set_yticks(np.linspace(0,1,11))
-                plt.savefig(f"Results/{save_path}/Errors/{model_weights}_threshold_{threshold}.png")
+                plt.savefig(f"Results/{output_path}/Errors/{model_weights}_threshold_{threshold}.png")
             plt.close()
 
     if(plot_ROC):
@@ -147,7 +148,7 @@ def test_model(weights, save_path, dataset_path, dataset_type, save_spectrograms
             ax[axis].set_ylim([0,1])
             ax[axis].set_title(events[axis])
         fig.suptitle("Receiver Operating Characteristic")
-        plt.savefig(f"Results/{save_path}/Errors/ROC_{model_weights}.png")
+        plt.savefig(f"Results/{output_path}/Errors/ROC_{model_weights}.png")
 
 if __name__ == "__main__":
 
@@ -168,11 +169,12 @@ if __name__ == "__main__":
     save_path = data["save_path"]
     best_threshold = data["best_threshold"]
     min_event_length = data["min_event_length"]
+    output_path = data["output_path"]
 
     save_spectrograms = args.plot
     plot_ROC = args.roc
     save_metrics = args.metrics
 
-    test_model(model_weights, save_path, eval_dataset_path, eval_dataset_type, 
+    test_model(model_weights, save_path, eval_dataset_path, eval_dataset_type, output_path,
                 save_spectrograms=save_spectrograms, plot_ROC=plot_ROC, save_metrics=save_metrics,
                 best_threshold=best_threshold, min_event_length=min_event_length)
