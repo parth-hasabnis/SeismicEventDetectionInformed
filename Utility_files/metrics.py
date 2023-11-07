@@ -14,7 +14,7 @@ class metrics():
             ones[:,:, i] = ones[:,:, i] * thresholds[i]
         ones = prediction > ones
         self.prediction = ones.float()*1
-        self.origPredictions = self.prediction
+        self.origPredictions = self.prediction      #  Thresholded, but before min_event_length
         self.target = target.permute(2, 0, 1)
         self.prediction = self.prediction.permute(2, 0, 1)
         
@@ -44,6 +44,10 @@ class metrics():
         predictions  = self.origPredictions.permute(0, 2, 1)
         predictions = predictions.cpu().detach().numpy()
         predictions = predictions.astype(int)
+        # Switch off events based on background
+        for event in range(self.n_events-1):
+            predictions[:,event] = predictions[:,event] & ~(predictions[:,-1])
+
         summ=0
         for k, pred in enumerate(predictions):
             for j, channel in enumerate(pred):
