@@ -49,6 +49,7 @@ def test_model(weights, save_path, dataset_path, dataset_type, output_path,
 
     crnn = CRNN(**crnn_kwargs)
     crnn.load_state_dict(torch.load(f"Results/{save_path}/Checkpoints/{weights}" ))
+    crnn.eval()
     crnn.to(device)
     test_dataset = SeismicEventDataset(TEST_PATH, dataset_args, dataset_type)
     eval_loader = DataLoader(test_dataset, 256, drop_last=False)
@@ -61,10 +62,11 @@ def test_model(weights, save_path, dataset_path, dataset_type, output_path,
     error_values = np.zeros((len(thresholds),dataset_kwargs["num_events"], 4))
 
     for batch, (O, X,y) in enumerate(eval_loader):
-        X = X.to(device)
-        y = y.to(device)
-        O = O.to(device)
-        prediction, _ = crnn(X)
+        with torch.inference_mode():
+            X = X.to(device)
+            y = y.to(device)
+            O = O.to(device)
+            prediction, _ = crnn(X)
 
         if(plot_ROC or save_metrics):
             for i, threshold in enumerate(thresholds):

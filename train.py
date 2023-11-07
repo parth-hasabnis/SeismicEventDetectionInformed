@@ -283,6 +283,7 @@ if __name__ == "__main__":
     ###########
     # VALIDATE
     ###########
+            crnn.eval()
             eval_loss = 0
             for i, (X, y) in enumerate(valid_loader):
                 X = X.to(device=device, dtype=torch.float32)
