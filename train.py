@@ -146,14 +146,14 @@ if __name__ == "__main__":
     dataset_kwargs = data["dataset_args"]
     continue_args = data["continue_training_args"]
 
-    outfile = open("Results" + save_path + "/training_args.json", "w")
-    json.dump(data, outfile, indent=2)
-    outfile.close()
-
     if(not exists("Results" + save_path)):
         makedirs("Results" + save_path)
-    if(not exists("Results" + save_path + "/Checkpoints")):
-        makedirs("Results" + save_path + "/Checkpoints")
+    if(not exists("Results" + save_path + "\\Checkpoints")):
+        makedirs("Results" + save_path + "\\Checkpoints")
+
+    outfile = open("Results" + save_path + "\\training_args.json", "w")
+    json.dump(data, outfile, indent=2)
+    outfile.close()
     
     dataset_args = DatasetArgs(**dataset_kwargs)
 

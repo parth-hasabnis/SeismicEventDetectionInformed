@@ -92,9 +92,10 @@ class SeismicEventDataset(Dataset):
         scale = num_windows/len_data_s
 
         strong_label = torch.zeros(self.args.num_events, log_mel_spectrogram.shape[1])
+        mask = torch.zeros(1, log_mel_spectrogram.shape[1])
         # if unlabel, label is a tensor of zeros
 
-        if("Background" not in file and self.type == 'Synthetic'):
+        if(self.type == 'Synthetic' and "Background" not in file):
             indexx = file.find("Data\\")
             skip = len("Data\\")
             root = file[:indexx]
@@ -108,13 +109,17 @@ class SeismicEventDataset(Dataset):
             key = list(label.keys())
             key = key[0]
 
-            Order = ['traffic','pedestrian']  
+            Order = ['traffic','pedestrian','background']  
 
             for stamp in label[key]:
                 index = Order.index(stamp['Label'])
                 start = round(stamp['Start']*scale)
                 end = round(stamp['End']*scale)
                 strong_label[index, start:end] = 1
+                mask = mask + strong_label[index]
+            temp = ~(mask.to(torch.bool))
+            temp = temp.to(torch.float32)
+            strong_label[-1, :] = temp
 
         downsampler = torch.nn.MaxPool1d(4,4)
         strong_label = downsampler(strong_label)

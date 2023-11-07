@@ -79,7 +79,7 @@ def test_model(weights, save_path, dataset_path, dataset_type, output_path,
             print("Saving spectrograms")  
             metric = metrics(prediction,y, best_threshold)
             prediction = metric.get_thresholded_predictions(min_event_frames)
-            heigths = [10, 20, 30, 40]
+            heigths = [10, 20, 30, 40, 50, 60]
             upsampler = torch.nn.Upsample(scale_factor=pooling_time_ratio, mode='nearest')
             upsampler = upsampler.to(device)
             prediction  = prediction.permute(0, 2, 1)
@@ -117,21 +117,22 @@ def test_model(weights, save_path, dataset_path, dataset_type, output_path,
                 plt.close()
             print("Done Saving")
     error = np.array(error)
-    for i, threshold in enumerate(thresholds):
-        error_values[i, :, 0] = error[i, :, 1]/ (error[i, :, 1] + error[i, :, 0] + 0.0001)           # False Alarm
-        error_values[i, :, 1] = error[i, :, 2]/ (error[i, :, 2] + error[i, :, 3] + 0.0001)           # Miss
-        error_values[i, :, 2] = error[i, :, 3]/ (error[i, :, 3] + error[i, :, 1] + 0.0001)           # Precision
-        error_values[i, :, 3] = error[i, :, 3]/ (error[i, :, 3] + error[i, :, 2] + 0.0001)           # Recall
-        if(save_metrics):
-            fig, ax = plt.subplots(nrows=1, ncols=dataset_kwargs["num_events"], figsize=(15,6))
-            for axis in range(len(ax)):
-                ax[axis].bar(X_axis,error_values[i,axis,:])
-                ax[axis].set_xlabel("Metric")
-                ax[axis].set_ylabel(f"Threshold = {threshold}")
-                ax[axis].set_title(events[axis])
-                ax[axis].set_yticks(np.linspace(0,1,11))
-                plt.savefig(f"Results/{output_path}/Errors/{model_weights}_threshold_{threshold}.png")
-            plt.close()
+    if(plot_ROC or save_metrics):
+        for i, threshold in enumerate(thresholds):
+            error_values[i, :, 0] = error[i, :, 1]/ (error[i, :, 1] + error[i, :, 0] + 0.0001)           # False Alarm
+            error_values[i, :, 1] = error[i, :, 2]/ (error[i, :, 2] + error[i, :, 3] + 0.0001)           # Miss
+            error_values[i, :, 2] = error[i, :, 3]/ (error[i, :, 3] + error[i, :, 1] + 0.0001)           # Precision
+            error_values[i, :, 3] = error[i, :, 3]/ (error[i, :, 3] + error[i, :, 2] + 0.0001)           # Recall
+            if(save_metrics):
+                fig, ax = plt.subplots(nrows=1, ncols=dataset_kwargs["num_events"], figsize=(15,6))
+                for axis in range(len(ax)):
+                    ax[axis].bar(X_axis,error_values[i,axis,:])
+                    ax[axis].set_xlabel("Metric")
+                    ax[axis].set_ylabel(f"Threshold = {threshold}")
+                    ax[axis].set_title(events[axis])
+                    ax[axis].set_yticks(np.linspace(0,1,11))
+                    plt.savefig(f"Results/{output_path}/Errors/{model_weights}_threshold_{threshold}.png")
+                plt.close()
 
     if(plot_ROC):
         alpha = error_values[:,:,0]
