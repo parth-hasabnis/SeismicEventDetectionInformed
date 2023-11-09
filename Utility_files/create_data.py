@@ -120,6 +120,9 @@ class SeismicEventDataset(Dataset):
             temp = ~(mask.to(torch.bool))
             temp = temp.to(torch.float32)
             strong_label[-1, :] = temp
+        
+        if("Background" in file):
+            strong_label[-1, :] = 1
 
         downsampler = torch.nn.MaxPool1d(4,4)
         strong_label = downsampler(strong_label)

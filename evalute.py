@@ -60,6 +60,7 @@ def test_model(weights, save_path, dataset_path, dataset_type, output_path,
     X_axis = ["False Alarm", "Miss", "Precison", "Recall"]
     error = list()
     error_values = np.zeros((len(thresholds),dataset_kwargs["num_events"], 4))
+    best_threshold_error_values = np.zeros((dataset_kwargs["num_events"], 4))
 
     for batch, (O, X,y) in enumerate(eval_loader):
         with torch.inference_mode():
@@ -76,11 +77,14 @@ def test_model(weights, save_path, dataset_path, dataset_type, output_path,
                     error.append(metric.Errors())
                 else:
                     error[i] = error[i] + metric.Errors()
-
+        plot_metric = metrics(prediction,y, best_threshold)
+        if batch == 0:
+            best_threshold_error = plot_metric.Errors()
+        else:
+            best_threshold_error = best_threshold_error + plot_metric.Errors()
         if(save_spectrograms):
-            print("Saving spectrograms")  
-            metric = metrics(prediction,y, best_threshold)
-            prediction = metric.get_thresholded_predictions(min_event_frames)
+            print("Saving spectrograms") 
+            prediction = plot_metric.get_thresholded_predictions(min_event_frames)
             heigths = [10, 20, 30, 40, 50, 60]
             upsampler = torch.nn.Upsample(scale_factor=pooling_time_ratio, mode='nearest')
             upsampler = upsampler.to(device)
@@ -135,6 +139,21 @@ def test_model(weights, save_path, dataset_path, dataset_type, output_path,
                     ax[axis].set_yticks(np.linspace(0,1,11))
                     plt.savefig(f"Results/{output_path}/Errors/{model_weights}_threshold_{threshold}.png")
                 plt.close()
+
+        best_threshold_error_values[:,0] = best_threshold_error[:,1]/ (best_threshold_error[:,1] + best_threshold_error[:,0] + 0.0001)    # False Alarm
+        best_threshold_error_values[:,1] = best_threshold_error[:,2]/ (best_threshold_error[:,2] + best_threshold_error[:,3] + 0.0001)    # Miss
+        best_threshold_error_values[:,2] = best_threshold_error[:,3]/ (best_threshold_error[:,3] + best_threshold_error[:,1] + 0.0001)    # Precision
+        best_threshold_error_values[:,3] = best_threshold_error[:,3]/ (best_threshold_error[:,3] + best_threshold_error[:,2] + 0.0001)    # Recall
+        if(save_metrics):
+            fig, ax = plt.subplots(nrows=1, ncols=dataset_kwargs["num_events"], figsize=(15,6))
+            for axis in range(len(ax)):
+                ax[axis].bar(X_axis,best_threshold_error_values[axis,:])
+                ax[axis].set_xlabel("Metric")
+                ax[axis].set_ylabel(f"Threshold = {best_threshold[axis]}")
+                ax[axis].set_title(events[axis])
+                ax[axis].set_yticks(np.linspace(0,1,11))
+            plt.savefig(f"Results/{output_path}/Errors/{model_weights}_best_threshold.png")
+            plt.close()
 
     if(plot_ROC):
         alpha = error_values[:,:,0]
