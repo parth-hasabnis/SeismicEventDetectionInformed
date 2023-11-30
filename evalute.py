@@ -4,6 +4,7 @@ import torch
 from torch.utils.data import DataLoader
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.ticker import (MultipleLocator, AutoMinorLocator)
 import json
 from Utility_files.metrics import metrics
 from Utility_files.create_data import SeismicEventDataset
@@ -115,11 +116,16 @@ def test_model(weights, save_path, dataset_path, dataset_type, output_path,
                 ax.set_xlabel("Time (s)")
                 ax.set_ylabel("Mel bands")
                 ax.set_yticks(np.arange(0, dataset_kwargs["max_mel_band"], 4))
+                ax.xaxis.set_major_locator(MultipleLocator(10))
+                ax.xaxis.set_minor_locator(MultipleLocator(1))
+                ax.yaxis.set_major_locator(MultipleLocator(4))
+                ax.yaxis.set_minor_locator(MultipleLocator(1))
 
                 ax1 = ax.twinx()
                 ax1.set_ylim(0, 250)
-                ax1.set_yticks(np.arange(0,sample_rate/2+1, 25))
+                ax1.set_yticks(np.arange(25,sample_rate/2+1, 25))
                 ax1.set_ylabel("Frequency (Hz)")
+                ax1.yaxis.set_minor_locator(MultipleLocator(5))
 
                 # ax.set_xticks(np.linspace(0,10,101))
                 ax.legend(["Prediction Vehicle", "Prediction Pedestrian", "Target Vehicle", "Target Pedestrian"], fontsize="16")
