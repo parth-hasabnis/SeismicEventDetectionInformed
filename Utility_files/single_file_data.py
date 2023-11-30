@@ -1,5 +1,3 @@
-from typing import Iterator
-from torch import Tensor
 from torch.utils.data import IterableDataset, DataLoader
 import os.path
 import json
@@ -80,7 +78,7 @@ if __name__ == "__main__":
     file.close
     
     dataset = SeismicIterableDataset(file1Nm, args["dataset_args"])
-    loader = DataLoader(dataset, batch_size=1)
+    loader = DataLoader(dataset, batch_size=200)
 
     for i,(o, x) in enumerate(loader):
         print(o.shape, x.shape)

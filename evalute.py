@@ -22,11 +22,6 @@ def test_model(weights, save_path, dataset_path, dataset_type, output_path,
     TEST_PATH = dataset_path    # Set dataset path 
     args = TestArguments()            # Use standard parameters
 
-    if(not exists("Results" + output_path + "/Output Plots")):
-        makedirs("Results" + output_path + "/Output Plots")
-    if(not exists("Results" + output_path + "/Errors")):
-        makedirs("Results" + output_path + "/Errors")
-
 
     f = open("Results" + save_path + "/training_args.json")  
     args = json.loads(f.read())
@@ -48,7 +43,7 @@ def test_model(weights, save_path, dataset_path, dataset_type, output_path,
     min_event_frames = np.round(np.array(min_event_length)/pooling_time_ratio)
 
     crnn = CRNN(**crnn_kwargs)
-    crnn.load_state_dict(torch.load(f"Results/{save_path}/Checkpoints/{weights}" ))
+    crnn.load_state_dict(torch.load(f"Results/{save_path}/Checkpoints/{weights}", map_location=device))
     crnn.eval()
     crnn.to(device)
     test_dataset = SeismicEventDataset(TEST_PATH, dataset_args, dataset_type)
@@ -101,24 +96,34 @@ def test_model(weights, save_path, dataset_path, dataset_type, output_path,
                 # x = np.flip(x, axis=0)
                 y_ = y[i].cpu().detach().numpy() - 0.5
                 pred_ = prediction[i].cpu().detach().numpy() - 0.5
-                sample_rate = 1000
+                sample_rate = dataset_kwargs["sample_rate"]
                 window_length_samples = int(round(sample_rate * dataset_kwargs["stft_window_seconds"]))
                 hop_length_samples = int(round(sample_rate * dataset_kwargs["stft_hop_seconds"]))
                 fft_length = 2 ** int(np.ceil(np.log(window_length_samples) / np.log(2.0)))
 
                 fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(15, 9))
+                plt.rcParams.update({'font.size': 20})
                 # librosa.display.specshow(x,sr=sample_rate, n_fft=fft_length, win_length=window_length_samples,hop_length=hop_length_samples, x_axis='time', cmap = None, htk=False)
                 ax.imshow(x)
-                ax.plot(pred_[0]*heigths[0], linewidth=3)
-                ax.plot(pred_[1]*heigths[1], linewidth=3)
-                ax.plot(y_[0]*heigths[2], linewidth=3)
-                ax.plot(y_[1]*heigths[3], linewidth=3)
+                ax.set_xticks(np.linspace(0,100,11), np.linspace(0,10,11))
+                ax.plot(pred_[0]*heigths[0], linewidth=5, color='magenta')
+                ax.plot(pred_[1]*heigths[1], linewidth=5, color='orange')
+                ax.plot(y_[0]*heigths[2], linewidth=5, color='cyan')
+                ax.plot(y_[1]*heigths[3], linewidth=5, color='red')
                 ax.set_ylim([0, dataset_kwargs["max_mel_band"]-1])
                 ax.set_title("Spectrogram with predictions and targets")
-                ax.set_xlabel("Time")
+                ax.set_xlabel("Time (s)")
                 ax.set_ylabel("Mel bands")
-                ax.set_yticks(np.arange(0, dataset_kwargs["max_mel_band"], 2))
-                plt.legend(["P Vehicle", "P Pedestrian", "T Vehicle", "T Pedestrian"])
+                ax.set_yticks(np.arange(0, dataset_kwargs["max_mel_band"], 4))
+
+                ax1 = ax.twinx()
+                ax1.set_ylim(0, 250)
+                ax1.set_yticks(np.arange(0,sample_rate/2+1, 25))
+                ax1.set_ylabel("Frequency (Hz)")
+
+                # ax.set_xticks(np.linspace(0,10,101))
+                ax.legend(["Prediction Vehicle", "Prediction Pedestrian", "Target Vehicle", "Target Pedestrian"], fontsize="16")
+
                 plt.savefig(f"Results/{output_path}/Output plots/{dataset_type}_{weights}_{batch}_{i}.png")  
                 plt.close()
             print("Done Saving")
@@ -130,7 +135,8 @@ def test_model(weights, save_path, dataset_path, dataset_type, output_path,
             error_values[i, :, 2] = error[i, :, 3]/ (error[i, :, 3] + error[i, :, 1] + 0.0001)           # Precision
             error_values[i, :, 3] = error[i, :, 3]/ (error[i, :, 3] + error[i, :, 2] + 0.0001)           # Recall
             if(save_metrics):
-                fig, ax = plt.subplots(nrows=1, ncols=dataset_kwargs["num_events"], figsize=(15,6))
+                plt.rcParams.update({'font.size': 16})
+                fig, ax = plt.subplots(nrows=1, ncols=dataset_kwargs["num_events"], figsize=(20,5))
                 for axis in range(len(ax)):
                     ax[axis].bar(X_axis,error_values[i,axis,:])
                     ax[axis].set_xlabel("Metric")
@@ -145,13 +151,16 @@ def test_model(weights, save_path, dataset_path, dataset_type, output_path,
         best_threshold_error_values[:,2] = best_threshold_error[:,3]/ (best_threshold_error[:,3] + best_threshold_error[:,1] + 0.0001)    # Precision
         best_threshold_error_values[:,3] = best_threshold_error[:,3]/ (best_threshold_error[:,3] + best_threshold_error[:,2] + 0.0001)    # Recall
         if(save_metrics):
-            fig, ax = plt.subplots(nrows=1, ncols=dataset_kwargs["num_events"], figsize=(15,6))
+            fig, ax = plt.subplots(nrows=1, ncols=dataset_kwargs["num_events"], figsize=(20,5))
             for axis in range(len(ax)):
                 ax[axis].bar(X_axis,best_threshold_error_values[axis,:])
                 ax[axis].set_xlabel("Metric")
                 ax[axis].set_ylabel(f"Threshold = {best_threshold[axis]}")
                 ax[axis].set_title(events[axis])
                 ax[axis].set_yticks(np.linspace(0,1,11))
+                for i in range(len(X_axis)):
+                    val = "{:.2f}".format(best_threshold_error_values[axis,i])
+                    ax[axis].text(i, best_threshold_error_values[axis,i], val, ha = 'center')
             plt.savefig(f"Results/{output_path}/Errors/{model_weights}_best_threshold.png")
             plt.close()
 
@@ -192,6 +201,15 @@ if __name__ == "__main__":
     best_threshold = data["best_threshold"]
     min_event_length = data["min_event_length"]
     output_path = data["output_path"]
+
+    if(not exists("Results" + output_path + "/Output Plots")):
+        makedirs("Results" + output_path + "/Output Plots")
+    if(not exists("Results" + output_path + "/Errors")):
+        makedirs("Results" + output_path + "/Errors")
+
+    output_args = "Results" + output_path + "\\eval_arguments.json"
+    with open(output_args, 'w') as fp:
+        json.dump(data, fp, indent=2)
 
     save_spectrograms = args.plot
     plot_ROC = args.roc

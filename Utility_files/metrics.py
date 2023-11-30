@@ -32,7 +32,7 @@ class metrics():
             prediction = prediction.cpu()
             target = self.target[i].flatten()
             target = target.cpu()
-            errors[i, :] = errors[i, :] + confusion_matrix(target, prediction).ravel()
+            errors[i, :] = errors[i, :] + confusion_matrix(target, prediction, labels=[0,1]).ravel()
             
         return errors
     
