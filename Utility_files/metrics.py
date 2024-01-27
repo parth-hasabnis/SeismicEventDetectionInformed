@@ -4,7 +4,7 @@ import numpy as np
 
 class metrics():
 
-    def __init__(self, prediction:torch.Tensor, target:torch.Tensor, thresholds) -> None:
+    def __init__(self, prediction:torch.Tensor, target:torch.Tensor, thresholds, min_event_length) -> None:
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.n_events = target.shape[-1]
         assert all(val>0 and val<1 for val in thresholds)
@@ -16,6 +16,7 @@ class metrics():
         self.prediction = ones.float()*1
         self.origPredictions = self.prediction      #  Thresholded, but before min_event_length
         self.target = target.permute(2, 0, 1)
+        self.prediction = self.get_thresholded_predictions(min_event_length)
         self.prediction = self.prediction.permute(2, 0, 1)
         
     def accuracy(self):
@@ -38,7 +39,8 @@ class metrics():
     
     def get_thresholded_predictions(self, min_event_length):
         """
-        Return the thresholded predictions 
+        Return the thresholded predictions after performing informed background thresholding
+        and discarding short predictions
         """
         assert len(min_event_length) == self.n_events
         predictions  = self.origPredictions.permute(0, 2, 1)
@@ -69,3 +71,22 @@ class metrics():
         new_predictions = torch.Tensor(predictions).float().permute(0,2,1)
         return(new_predictions)
     
+def get_thresholded_predictions(prediction, threshold, min_event_length):
+    """
+    Thresholds the raw predictions
+    Need to add support for min_event_frames
+    """
+    n_events = prediction.shape[-1]
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    ones = torch.ones(prediction.shape)
+    ones = ones.to(device)
+    assert all(val>0 and val<1 for val in threshold)
+    for i in range(n_events):
+            ones[:,:, i] = ones[:,:, i] * threshold[i]
+    ones = prediction > ones
+    thresh_prediction = ones.float()*1
+    thresh_prediction = thresh_prediction.cpu().detach().numpy()
+    thresh_prediction = thresh_prediction.astype(int)
+    for event in range(n_events-1):
+            thresh_prediction[:,event] = thresh_prediction[:,event] & ~(thresh_prediction[:,-1])
+    return thresh_prediction

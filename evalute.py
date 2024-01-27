@@ -63,17 +63,18 @@ def test_model(weights, save_path, dataset_path, dataset_type, output_path,
             X = X.to(device)
             y = y.to(device)
             O = O.to(device)
+            print(X.shape)
             prediction, _ = crnn(X)
 
         if(plot_ROC or save_metrics):
             for i, threshold in enumerate(thresholds):
                 threshold = np.ones(dataset_kwargs["num_events"])*threshold
-                metric = metrics(prediction,y, threshold) 
+                metric = metrics(prediction,y, threshold, min_event_frames) 
                 if batch == 0:
                     error.append(metric.Errors())
                 else:
                     error[i] = error[i] + metric.Errors()
-        plot_metric = metrics(prediction,y, best_threshold)
+        plot_metric = metrics(prediction,y, best_threshold, min_event_frames)
         if batch == 0:
             best_threshold_error = plot_metric.Errors()
         else:
@@ -215,7 +216,7 @@ if __name__ == "__main__":
 
     output_args = "Results" + output_path + "\\eval_arguments.json"
     with open(output_args, 'w') as fp:
-        json.dump(data, fp, indent=2)
+        json.dump(data, fp, indent=1)
 
     save_spectrograms = args.plot
     plot_ROC = args.roc

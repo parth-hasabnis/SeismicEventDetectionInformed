@@ -31,13 +31,23 @@ class SeismicIterableDataset(IterableDataset):
         self.hop_length_samples = int(round(self.args["sample_rate"] * self.args["stft_hop_seconds"]))
         self.fft_length = 2 ** int(np.ceil(np.log(self.window_length_samples) / np.log(2.0)))
 
+        self.num_frames = round(len(self.data)/(fs*self.args["frame_len"]))
+        display_start = self.start.strftime("%A, %d. %B %Y %I:%M%p")            # Time to display in console
+        print(f"File Start: {display_start}. Number of frames in .sac file: {self.num_frames}")
+
+    def get_starttime(self):
+        """
+        Return start time of data file
+        """
+        return self.start
+
     def get_slice(self):
         win_bgn = self.start + self.index*self.args["frame_len"]
         win_end = win_bgn+self.args["frame_len"]
         st_slice = self.st.slice(win_bgn, win_end)
         self.index = self.index + 1
         data = st_slice[0].data
-        return data
+        return self.index-1, data
 
     def get_spectrogram(self, data):
         spectrogram = librosa.feature.melspectrogram(y=data, sr=self.args["sample_rate"], n_fft=self.fft_length, win_length=self.window_length_samples,
@@ -57,13 +67,24 @@ class SeismicIterableDataset(IterableDataset):
 
         assert np.all(log_mel_spectrogram.shape == orig_spectrogram.shape)
 
+        log_mel_spectrogram = log_mel_spectrogram.T      
+        log_mel_spectrogram = np.expand_dims(log_mel_spectrogram, axis=0)  
+        log_mel_spectrogram = log_mel_spectrogram.astype(np.float32)
+
+        orig_spectrogram = orig_spectrogram.T      
+        orig_spectrogram = np.expand_dims(orig_spectrogram, axis=0)  
+        orig_spectrogram = orig_spectrogram.astype(np.float32)
+
+        assert np.all(log_mel_spectrogram.shape == orig_spectrogram.shape)
         return orig_spectrogram, log_mel_spectrogram
          
     def __iter__(self):
-        while True:
-            data = self.get_slice()
+        index = 0
+        while index<self.num_frames-1:
+            index, data = self.get_slice()
             o, x = self.get_spectrogram(data)
-            yield o, x
+            yield index, o, x
+
 
 # Test Iterable Dataset
 if __name__ == "__main__":

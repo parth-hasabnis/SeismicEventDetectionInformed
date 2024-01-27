@@ -104,3 +104,24 @@ class TestArguments():
         # self.batch_sizes = [self.labeled_batch_size, batch_size - self.labeled_batch_size]
         self.events = ['Vehicle', 'Pedestrian']
         self.num_events = len(self.events)
+
+def simpleCount(pred):      # argument shape: [batch_size, time_bins/time_pooling, n_channels]
+                            # Eg: [512, 25, 3]
+    """
+    Counts single events in multiple channels per prediction
+    """
+    count = np.sum(pred, axis=1)
+    count = count>0
+    count = count.astype(int)
+    return count
+    
+
+def multipleCount(pred):    # argument shape: [batch_size, time_bins/time_pooling, n_channels]
+                            # Eg: [512, 25, 3]
+    """
+    Counts multiple events in multiple channels per prediction. 
+    Done by counting the number of rising edges in the binary (thresholded) prediction
+    """
+    count = np.sum(pred[:, 1:, :] > pred[:, :-1, :], axis=1) + pred[:, 0, :]
+    return(count)
+    

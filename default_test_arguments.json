@@ -1,0 +1,9 @@
+{
+    "test_dataset_path":"D:\\Purdue\\Thesis\\eaps data\\Fall 23\\EAPS\\Raw Recordings\\NUS exit",
+    "model_weights":"student_epoch_14.pt",
+    "save_path":"\\default",
+    "output_path":"\\default_continuous",
+    "best_threshold":[0.5, 0.5, 0.95],
+    "min_event_length":[10, 25, 1],
+    "time_zone": "+08:00"
+}
