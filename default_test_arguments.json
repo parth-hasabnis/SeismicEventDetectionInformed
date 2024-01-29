@@ -1,5 +1,6 @@
 {
     "test_dataset_path":"D:\\Purdue\\Thesis\\eaps data\\Fall 23\\EAPS\\Raw Recordings\\NUS exit",
+    "format":"*.Z.sac",
     "model_weights":"student_epoch_14.pt",
     "save_path":"\\default",
     "output_path":"\\default_continuous",

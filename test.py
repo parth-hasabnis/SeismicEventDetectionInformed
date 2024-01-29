@@ -13,19 +13,23 @@ from os import makedirs
 import argparse
 import json
 from os import path, walk
+import glob
 import datetime
 
-def test_model(weights, save_path, dataset_path, output_path, save_spectrograms, time_zone="+00:00", best_threshold=[0.5, 0.5], min_event_length=[1,2.5]):
+def test_model(weights, save_path, dataset_path, file_format, output_path, save_spectrograms, time_zone="+00:00", best_threshold=[0.5, 0.5], min_event_length=[1,2.5]):
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(device)
     TEST_PATHS = []    # Set dataset path 
 
-    for root, dirs, files in walk(dataset_path, topdown=False):
+    """for root, dirs, files in walk(dataset_path, topdown=False):
         for name in files:
             file = path.join(root, name)
             if(".sac" in file):
-                TEST_PATHS.append(file)
+                TEST_PATHS.append(file)"""
+    
+    path_format = dataset_path + file_format
+    TEST_PATHS = glob.glob(path_format)
 
     f = open("Results" + save_path + "/training_args.json")  
     args = json.loads(f.read())
@@ -119,7 +123,7 @@ def test_model(weights, save_path, dataset_path, output_path, save_spectrograms,
                         exit(0)"""
 
           
-        count_file = count_file_path + f"/count_{file_num}.json"
+        count_file = count_file_path + f"/count_{file_start}.json"
         with open(count_file, 'w') as fp:
             json.dump(event_count_dict, fp, indent=2)
 
@@ -156,6 +160,7 @@ if __name__ == "__main__":
     min_event_length = data["min_event_length"]
     output_path = data["output_path"]
     time_zone = data["time_zone"]
+    file_format = data["format"]
 
     if(not exists("Results" + output_path + "/Output Plots")):
         makedirs("Results" + output_path + "/Output Plots")
@@ -168,4 +173,4 @@ if __name__ == "__main__":
 
     save_spectrograms = args.plot
 
-    test_model(model_weights, save_path, test_dataset_path, output_path, save_spectrograms,time_zone=time_zone, best_threshold=best_threshold, min_event_length=min_event_length)
+    test_model(model_weights, save_path, test_dataset_path, file_format, output_path, save_spectrograms,time_zone=time_zone, best_threshold=best_threshold, min_event_length=min_event_length)
