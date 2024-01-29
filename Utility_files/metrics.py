@@ -73,8 +73,8 @@ class metrics():
     
 def get_thresholded_predictions(prediction, threshold, min_event_length):
     """
-    Thresholds the raw predictions
-    Need to add support for min_event_frames
+    Thresholds the raw predictions and discards events by prioritising the background channel
+    Processes the predictions to discard events shorter than the provided minimum event length
     """
     n_events = prediction.shape[-1]
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -85,8 +85,31 @@ def get_thresholded_predictions(prediction, threshold, min_event_length):
             ones[:,:, i] = ones[:,:, i] * threshold[i]
     ones = prediction > ones
     thresh_prediction = ones.float()*1
+    thresh_prediction  = thresh_prediction.permute(0, 2, 1)
     thresh_prediction = thresh_prediction.cpu().detach().numpy()
     thresh_prediction = thresh_prediction.astype(int)
     for event in range(n_events-1):
             thresh_prediction[:,event] = thresh_prediction[:,event] & ~(thresh_prediction[:,-1])
-    return thresh_prediction
+
+    summ=0
+    for k, pred in enumerate(thresh_prediction):
+        for j, channel in enumerate(pred):
+            for i, elem in enumerate(channel):
+                if elem != 0:
+                    summ = summ + elem
+                    if i == thresh_prediction.shape[2]-1:
+                        if summ<min_event_length[j]:
+                            thresh_prediction[k][j][i-summ+1:i+1] = 0
+                else:
+                    if summ:
+                        if summ<min_event_length[j]:
+                            # print(k,j,i-summ, i)
+                            thresh_prediction[k][j][i-summ:i] = 0
+                    summ = 0
+            summ = 0
+        summ = 0
+
+    # new_predictions = torch.Tensor(thresh_prediction).float().permute(0,2,1)
+    new_predictions = torch.Tensor(thresh_prediction).permute(0,2,1)
+    new_predictions = new_predictions.cpu().detach().numpy()
+    return(new_predictions)

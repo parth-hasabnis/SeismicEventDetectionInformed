@@ -63,7 +63,6 @@ def test_model(weights, save_path, dataset_path, dataset_type, output_path,
             X = X.to(device)
             y = y.to(device)
             O = O.to(device)
-            print(X.shape)
             prediction, _ = crnn(X)
 
         if(plot_ROC or save_metrics):
