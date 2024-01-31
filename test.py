@@ -123,7 +123,7 @@ def test_model(weights, save_path, dataset_path, file_format, output_path, save_
                         exit(0)"""
 
           
-        count_file = count_file_path + f"/count_{file_start}.json"
+        count_file = count_file_path + f"/count_{file_num}.json"
         with open(count_file, 'w') as fp:
             json.dump(event_count_dict, fp, indent=2)
 
@@ -167,7 +167,7 @@ if __name__ == "__main__":
     if(not exists("Results" + output_path + "/Errors")):
         makedirs("Results" + output_path + "/Errors")
 
-    output_args = "Results" + output_path + "\\eval_arguments.json"
+    output_args = "Results" + output_path + "/test_arguments.json"
     with open(output_args, 'w') as fp:
         json.dump(data, fp, indent=2)
 

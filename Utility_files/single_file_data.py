@@ -83,6 +83,8 @@ class SeismicIterableDataset(IterableDataset):
         while index<self.num_frames-1:
             index, data = self.get_slice()
             o, x = self.get_spectrogram(data)
+            if (o.shape != (1, 101, 64)):
+                break
             yield index, o, x
 
 
