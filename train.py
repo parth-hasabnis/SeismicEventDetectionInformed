@@ -210,8 +210,8 @@ if __name__ == "__main__":
 
     batch_size = sum(training_args["batch_sizes"])
     batch_sampler = MultiStreamBatchSampler(training_args["subsets"], indices, training_args["batch_sizes"])
-    train_loader = DataLoader(train_dataset, batch_sampler=batch_sampler, num_workers=2)
-    valid_loader = DataLoader(valid_dataset, batch_size=batch_size, num_workers=2)
+    train_loader = DataLoader(train_dataset, batch_sampler=batch_sampler, num_workers=4)
+    valid_loader = DataLoader(valid_dataset, batch_size=batch_size, num_workers=4)
     print(f"Length of training dataset {len(train_dataset)}")
     print(f"Length of validation dataset {len(valid_dataset)}")
 
