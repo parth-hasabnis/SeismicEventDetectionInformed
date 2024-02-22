@@ -2,7 +2,7 @@ import torch
 from sklearn.metrics import accuracy_score, f1_score, precision_score, confusion_matrix
 import numpy as np
 
-class metrics():
+class StrongMetrics():
 
     def __init__(self, prediction:torch.Tensor, target:torch.Tensor, thresholds, min_event_length) -> None:
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -47,8 +47,8 @@ class metrics():
         predictions = predictions.cpu().detach().numpy()
         predictions = predictions.astype(int)
         # Switch off events based on background
-        for event in range(self.n_events-1):
-            predictions[:,event] = predictions[:,event] & ~(predictions[:,-1])
+        # for event in range(self.n_events-1):  # Switch off only pedestrian
+        predictions[:,1] = predictions[:,1] & ~(predictions[:,-1])
 
         summ=0
         for k, pred in enumerate(predictions):
@@ -70,7 +70,31 @@ class metrics():
 
         new_predictions = torch.Tensor(predictions).float().permute(0,2,1)
         return(new_predictions)
-    
+
+class WeakMetrics:
+
+    def __init__(self, prediction:torch.Tensor, target:torch.Tensor, thresholds) -> None:
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.n_events = target.shape[-1]
+        assert all(val>0 and val<1 for val in thresholds)
+        ones = torch.ones(target.shape)
+        ones = ones.to(device)
+        for i in range(self.n_events):
+            ones[:, i] = ones[:, i] * thresholds[i]
+        ones = prediction > ones
+        self.prediction = ones.float()*1
+        self.target = target
+
+
+    def Errors(self):
+        errors = np.zeros((self.n_events, 4))
+        for i in range(self.n_events):
+            prediction = self.prediction[:, i].cpu()
+            target = self.target[:, i].cpu()
+            errors[i, :] = errors[i, :] + confusion_matrix(target, prediction, labels=[0,1]).ravel()
+            
+        return errors
+
 def get_thresholded_predictions(prediction, threshold, min_event_length):
     """
     Thresholds the raw predictions and discards events by prioritising the background channel

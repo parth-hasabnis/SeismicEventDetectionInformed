@@ -6,6 +6,7 @@ import json
 import obspy as opy
 import numpy as np
 import librosa  
+from scipy import signal
 
 import itertools
 
@@ -50,7 +51,7 @@ class SeismicEventDataset(Dataset):
             file = self.data[idx]
             st = opy.read(file)
         except:
-            file = r"D:\Purdue\Thesis\eaps data\Fall 23\EAPS\DATASET\Train\Strong_Dataset_mini\Strong Labels\Real\Background\Background1.sac"
+            file = r"D:\\Purdue\\Thesis\\eaps data\\Fall 23\\EAPS\DATASET\\Train\\Strong_Dataset_mini\\Strong Labels\\Real\\Background\\Background1.sac"
             st = opy.read(file)
 
         fs = round(1/st[0].stats.delta)
@@ -59,6 +60,7 @@ class SeismicEventDataset(Dataset):
             st.decimate(factor)
 
         fs = round(1/st[0].stats.delta)
+        assert fs == self.args.sample_rate
         sample_rate = fs
         data = st[0].data
         win_len = round(len(st[0].data)/fs)
@@ -69,7 +71,7 @@ class SeismicEventDataset(Dataset):
         # n_mels = args.mel_bands
         num_spectrogram_bins = fft_length // 2 + 1
 
-        spectrogram = librosa.feature.melspectrogram(y=data, sr=fs, n_fft=fft_length, win_length=window_length_samples,
+        spectrogram = librosa.feature.melspectrogram(y=data, sr=fs, n_fft=fft_length, win_length=window_length_samples,window=signal.windows.hann,
                                                     hop_length=hop_length_samples, power=self.args.power, n_mels=self.args.mel_bands, htk=False)
         if self.args.eval:
             orig_spectrogram = spectrogram
@@ -78,8 +80,9 @@ class SeismicEventDataset(Dataset):
         if self.args.mel_offset !=0:
             spectrogram[:self.args.mel_offset, :] = 0
         if self.args.normalize:
-            spectrogram_norm = spectrogram/np.max(spectrogram)
-            log_mel_spectrogram = np.log(spectrogram_norm + self.args.LOG_OFFSET)
+            log_mel_spectrogram = np.log(spectrogram + self.args.LOG_OFFSET)
+            log_mel_spectrogram = log_mel_spectrogram/np.max(log_mel_spectrogram)  
+            assert np.max(log_mel_spectrogram) == 1.0
         else:
             log_mel_spectrogram = np.log(spectrogram + self.args.LOG_OFFSET)
             
@@ -140,7 +143,6 @@ class SeismicEventDataset(Dataset):
         else:
             return log_mel_spectrogram, strong_label
         
-
 class TwoStreamBatchSampler(Sampler):
 
     def __init__(self, primary_indices, secondary_indices, batch_size, secondary_batch_size) -> None:

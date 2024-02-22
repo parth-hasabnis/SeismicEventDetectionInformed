@@ -4,6 +4,9 @@ __pycache__/
 # File to test functions before implementing them
 test_stuff.ipynb
 test_stuff.py
+read_test_counts.py
+Datasets.txt
+jank_unlabel.py
 
 # Outputs and Results
 Results/
@@ -18,3 +21,4 @@ Testing.xlsx
 eval_arguments.json
 training_arguments.json
 test_arguments.json
+test_arguments_phase4.json

@@ -77,9 +77,13 @@ def test_model(weights, save_path, dataset_path, file_format, output_path, save_
             new_count = np.sum(count, axis=0)               # All counts added ... count per hour
             hour_start = starttime + batch_start*10         # local starttime
             hour_end = starttime + batch_size_hour*10       # local endtime
-
             hour_start_string = hour_start.strftime("%A, %d. %B %Y %I:%M%p")    # startime string
             hour_end_string = hour_end.strftime("%A, %d. %B %Y %I:%M%p")        # endtime string
+
+            try:
+                assert hour_start.minute == 0
+            except AssertionError:
+                print(hour_start_string)
 
             event_count_dict[batch_start] = [hour_start_string, hour_end_string, new_count.tolist()]
 

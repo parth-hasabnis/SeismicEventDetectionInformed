@@ -4,6 +4,7 @@ import json
 import obspy as opy
 import numpy as np
 import librosa 
+from scipy import signal
 
 class SeismicIterableDataset(IterableDataset):
 
@@ -25,7 +26,8 @@ class SeismicIterableDataset(IterableDataset):
         self.st = st.copy()
         self.data = st[0].data
         self.start = st[0].stats.starttime
-        self.end = st[0].stats.endtime
+        if self.start.minute != 0:
+            self. start = self.start.replace(second=0, microsecond=0, minute=0, hour=self.start.hour+1)
 
         self.window_length_samples = int(round(self.args["sample_rate"] * self.args["stft_window_seconds"]))
         self.hop_length_samples = int(round(self.args["sample_rate"] * self.args["stft_hop_seconds"]))
@@ -50,7 +52,7 @@ class SeismicIterableDataset(IterableDataset):
         return self.index-1, data
 
     def get_spectrogram(self, data):
-        spectrogram = librosa.feature.melspectrogram(y=data, sr=self.args["sample_rate"], n_fft=self.fft_length, win_length=self.window_length_samples,
+        spectrogram = librosa.feature.melspectrogram(y=data, sr=self.args["sample_rate"], n_fft=self.fft_length, win_length=self.window_length_samples,window=signal.windows.hann,
                                                     hop_length=self.hop_length_samples, power=self.args["power"], n_mels=self.args["mel_bands"], htk=False)
         
         orig_spectrogram = spectrogram                                              # Orig spectrogram = not zeroed out below mel offset

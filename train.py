@@ -59,14 +59,14 @@ def train_one_epoch(train_loader, model, optimizer, c_epoch, ema_model=None):
         mask_strong: bool, mask the batch to get only the strong labeled data (used to calcultate the loss)
         rampup: bool, Whether or not to adjust the learning rate during training (params in config)
     """
-    consistency_type = training_args["consistency_type"]
-    class_criterion = nn.BCELoss()
-    if consistency_type == "strong":  
-        consistency_criterion = nn.MSELoss()
-    elif consistency_type == "weak":
-        consistency_criterion = nn.BCELoss()
+    class_criterion = nn.BCELoss()  
+    consistency_criterion = nn.MSELoss()
+
+    class_criterion = class_criterion.to(device)
+    consistency_criterion = consistency_criterion.to(device)
 
     rampup = training_args["lr_rampup"]
+
     for i, (input, target) in enumerate(train_loader):
         global_step = c_epoch * len(train_loader) + i # total number of batches trained
         if rampup>0:
@@ -77,12 +77,11 @@ def train_one_epoch(train_loader, model, optimizer, c_epoch, ema_model=None):
             for param_group in optimizer.param_groups:
                 param_group['lr'] = lr
 
-
         if(i==0):
             print("Training!")
 
         batch_input = input
-        noise = 0.05*torch.rand(input.shape)
+        noise = 0.2*torch.rand(input.shape)
         ema_batch_input = noise + input
 
         ema_batch_input = ema_batch_input.to(device=device, dtype=torch.float32)
@@ -99,6 +98,8 @@ def train_one_epoch(train_loader, model, optimizer, c_epoch, ema_model=None):
         weak_pred_trim = weak_pred[training_args["batch_sizes"][0]:]
 
         loss = None
+
+        # Strong BCE Loss
         if training_args["mask_synth"] == False:
             strong_class_loss = class_criterion(strong_pred[:training_args["batch_sizes"][0]], target[:training_args["batch_sizes"][0]])            # Discard the outputs of unlabelled data
             if ema_model is not None:
@@ -107,17 +108,22 @@ def train_one_epoch(train_loader, model, optimizer, c_epoch, ema_model=None):
                 loss += strong_class_loss
             else:
                 loss = strong_class_loss
+
+        # Teacher-student consistency Loss
         if ema_model is not None:
             if training_args["mask_unlabel"] == False:
-                consistency_weight = training_args["consistency"] * sigmoid_rampup(c_epoch, training_args["consistency_rampup"])
-                if consistency_type == "weak":
-                    consistency_loss = consistency_weight * consistency_criterion(weak_pred[training_args["batch_sizes"][0]:], weak_pred_ema[training_args["batch_sizes"][0]:])
-                elif consistency_type == "strong":
-                    consistency_loss = consistency_weight * consistency_criterion(strong_pred[training_args["batch_sizes"][0]:], strong_pred_ema[training_args["batch_sizes"][0]:])
+                # consistency_weight = training_args["consistency"] * sigmoid_rampup(c_epoch, training_args["consistency_rampup"])
+                if c_epoch < training_args["consistency_rampup"]:
+                    consistency_weight = training_args["consistency"] * c_epoch/training_args["consistency_rampup"]
+                else:
+                    consistency_weight = training_args["consistency"]
+
+                consistency_loss_weak = consistency_weight * consistency_criterion(weak_pred[training_args["batch_sizes"][0]:], weak_pred_ema[training_args["batch_sizes"][0]:])
+                consistency_loss_strong = consistency_weight * consistency_criterion(strong_pred[training_args["batch_sizes"][0]:], strong_pred_ema[training_args["batch_sizes"][0]:])
             if loss is not None:
-                loss += consistency_loss
+                loss += consistency_loss_weak + consistency_loss_strong
             else:
-                loss = consistency_loss
+                loss = consistency_loss_weak + consistency_loss_strong
 
         optimizer.zero_grad()
         loss.backward()
@@ -165,7 +171,6 @@ if __name__ == "__main__":
         dataset = SeismicEventDataset(path, dataset_args, 'Synthetic')
         label_datasets.append(dataset)
     synth_dataset = ConcatDataset(label_datasets)
-    print("Labelled Dataset:", len(synth_dataset))
 
     synth_len = round(len(synth_dataset)*0.8)       # total samples in synthetic training dataset
     synth_dataset, valid_dataset = random_split(synth_dataset, [synth_len, len(synth_dataset) - synth_len])         # Split the synthesic dataset to create a validation datase
@@ -177,7 +182,8 @@ if __name__ == "__main__":
             unlabel_datasets.append(dataset)
         unlabel_dataset = ConcatDataset(unlabel_datasets)
         print("UnLabelled Dataset:", len(unlabel_dataset))
-
+    print("Labelled Dataset:", len(synth_dataset))
+    
     ### Test on small dummy data
     '''
     synth_dataset, sm = random_split(synth_dataset, [args.labeled_batch_size, len(synth_dataset) - args.labeled_batch_size]) 
@@ -208,7 +214,6 @@ if __name__ == "__main__":
     valid_loader = DataLoader(valid_dataset, batch_size=batch_size, num_workers=2)
     print(f"Length of training dataset {len(train_dataset)}")
     print(f"Length of validation dataset {len(valid_dataset)}")
-
 
     ########
     # MODEL
