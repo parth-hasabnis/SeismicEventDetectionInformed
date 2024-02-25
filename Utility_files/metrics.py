@@ -4,9 +4,10 @@ import numpy as np
 
 class StrongMetrics():
 
-    def __init__(self, prediction:torch.Tensor, target:torch.Tensor, thresholds, min_event_length) -> None:
+    def __init__(self, prediction:torch.Tensor, target:torch.Tensor, thresholds, min_event_length, informed_thresh) -> None:
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.n_events = target.shape[-1]
+        self.BIT = informed_thresh
         assert all(val>0 and val<1 for val in thresholds)
         ones = torch.ones(target.shape)
         ones = ones.to(device)
@@ -46,9 +47,12 @@ class StrongMetrics():
         predictions  = self.origPredictions.permute(0, 2, 1)
         predictions = predictions.cpu().detach().numpy()
         predictions = predictions.astype(int)
-        # Switch off events based on background
-        # for event in range(self.n_events-1):  # Switch off only pedestrian
-        predictions[:,1] = predictions[:,1] & ~(predictions[:,-1])
+        # Switch off events based on background - Both
+        if(self.BIT):
+            for event in range(self.n_events-1):  
+                predictions[:,event] = predictions[:,event] & ~(predictions[:,-1])
+        # Switch off only pedestrian
+        # predictions[:,1] = predictions[:,1] & ~(predictions[:,-1])
 
         summ=0
         for k, pred in enumerate(predictions):

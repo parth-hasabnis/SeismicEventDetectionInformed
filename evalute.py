@@ -16,7 +16,8 @@ from os import makedirs
 import argparse
 
 def test_model(weights, save_path, dataset_path, dataset_type, output_path,
-               save_spectrograms: bool, plot_ROC: bool, save_metrics:bool, best_threshold=[0.5, 0.5], min_event_length=[1,2.5]):
+               save_spectrograms: bool, plot_ROC: bool, save_metrics:bool, 
+               best_threshold=[0.5, 0.5], min_event_length=[1,2.5], informed_thresh=True):
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(device)
@@ -72,7 +73,7 @@ def test_model(weights, save_path, dataset_path, dataset_type, output_path,
         if(plot_ROC or save_metrics):
             for i, threshold in enumerate(thresholds):
                 threshold = np.ones(dataset_kwargs["num_events"])*threshold
-                strong_metric = StrongMetrics(prediction,y, threshold, min_event_frames) 
+                strong_metric = StrongMetrics(prediction,y, threshold, min_event_frames, informed_thresh=informed_thresh) 
                 weak_metric = WeakMetrics(weak_pred, weak_y, threshold)
                 if batch == 0:
                     strong_error.append(strong_metric.Errors())
@@ -80,7 +81,7 @@ def test_model(weights, save_path, dataset_path, dataset_type, output_path,
                 else:
                     strong_error[i] = strong_error[i] + strong_metric.Errors()
                     weak_error[i] = weak_error[i] + weak_metric.Errors()
-        plot_metric = StrongMetrics(prediction,y, best_threshold, min_event_frames)
+        plot_metric = StrongMetrics(prediction,y, best_threshold, min_event_frames, informed_thresh=informed_thresh)
         plot_weak_metric = WeakMetrics(weak_pred, weak_y, best_threshold)
         if batch == 0:
             best_threshold_error = plot_metric.Errors()
@@ -200,7 +201,7 @@ def test_model(weights, save_path, dataset_path, dataset_type, output_path,
                 ax[axis].set_title(events[axis])
                 ax[axis].set_yticks(np.linspace(0,1,11))
                 for i in range(len(X_axis)):
-                    val = "{:.2f}".format(best_threshold_error_values[axis,i])
+                    val = "{:.2f}".format(best_threshold_error_values[axis,i]*100)
                     ax[axis].text(i, best_threshold_error_values[axis,i], val, ha = 'center')
 
                 ax2[axis].bar(X_axis,weak_best_threshold_error_values[axis,:])
@@ -209,7 +210,7 @@ def test_model(weights, save_path, dataset_path, dataset_type, output_path,
                 ax2[axis].set_title(events[axis])
                 ax2[axis].set_yticks(np.linspace(0,1,11))
                 for i in range(len(X_axis)):
-                    val = "{:.2f}".format(weak_best_threshold_error_values[axis,i])
+                    val = "{:.2f}".format(weak_best_threshold_error_values[axis,i]*100)
                     ax2[axis].text(i, weak_best_threshold_error_values[axis,i], val, ha = 'center')
 
             fig.savefig(f"Results/{output_path}/Errors/strong_{model_weights}_best_threshold.png")
@@ -270,6 +271,7 @@ if __name__ == "__main__":
     best_threshold = data["best_threshold"]
     min_event_length = data["min_event_length"]
     output_path = data["output_path"]
+    informed_thresh = data["BIT"]
 
     if(not exists("Results" + output_path + "/Output Plots")):
         makedirs("Results" + output_path + "/Output Plots")
@@ -286,4 +288,4 @@ if __name__ == "__main__":
 
     test_model(model_weights, save_path, eval_dataset_path, eval_dataset_type, output_path,
                 save_spectrograms=save_spectrograms, plot_ROC=plot_ROC, save_metrics=save_metrics,
-                best_threshold=best_threshold, min_event_length=min_event_length)
+                best_threshold=best_threshold, min_event_length=min_event_length, informed_thresh=informed_thresh)
