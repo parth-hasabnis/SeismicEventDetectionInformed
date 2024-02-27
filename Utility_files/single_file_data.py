@@ -61,10 +61,11 @@ class SeismicIterableDataset(IterableDataset):
         if self.args["mel_offset"] !=0:
             spectrogram[:self.args["mel_offset"], :] = 0
         if self.args["normalize"]:
-            spectrogram_norm = spectrogram/np.max(spectrogram)
-            log_mel_spectrogram = np.log(spectrogram_norm + self.args["LOG_OFFSET"])
+            log_mel_spectrogram = np.log(spectrogram + self.args["LOG_OFFSET"])
+            log_mel_spectrogram = log_mel_spectrogram/np.max(log_mel_spectrogram)  
         else:
             log_mel_spectrogram = np.log(spectrogram + self.args["LOG_OFFSET"]) 
+
         log_mel_spectrogram = log_mel_spectrogram[:self.args["max_mel_band"],:]
 
         assert np.all(log_mel_spectrogram.shape == orig_spectrogram.shape)

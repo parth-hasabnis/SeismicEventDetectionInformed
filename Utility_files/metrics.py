@@ -99,7 +99,7 @@ class WeakMetrics:
             
         return errors
 
-def get_thresholded_predictions(prediction, threshold, min_event_length):
+def get_thresholded_predictions(prediction, threshold, min_event_length, informed_thresh):
     """
     Thresholds the raw predictions and discards events by prioritising the background channel
     Processes the predictions to discard events shorter than the provided minimum event length
@@ -116,8 +116,10 @@ def get_thresholded_predictions(prediction, threshold, min_event_length):
     thresh_prediction  = thresh_prediction.permute(0, 2, 1)
     thresh_prediction = thresh_prediction.cpu().detach().numpy()
     thresh_prediction = thresh_prediction.astype(int)
-    for event in range(n_events-1):
-            thresh_prediction[:,event] = thresh_prediction[:,event] & ~(thresh_prediction[:,-1])
+    if informed_thresh:
+        # for event in range(n_events-1):
+        #     thresh_prediction[:,event] = thresh_prediction[:,event] & ~(thresh_prediction[:,-1])
+        thresh_prediction[:,1] = thresh_prediction[:,1] & ~(thresh_prediction[:,-1])
 
     summ=0
     for k, pred in enumerate(thresh_prediction):

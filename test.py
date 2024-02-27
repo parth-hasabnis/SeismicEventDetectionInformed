@@ -16,7 +16,8 @@ from os import path, walk
 import glob
 import datetime
 
-def test_model(weights, save_path, dataset_path, file_format, output_path, save_spectrograms, time_zone="+00:00", best_threshold=[0.5, 0.5], min_event_length=[1,2.5]):
+def test_model(weights, save_path, dataset_path, file_format, output_path, save_spectrograms, time_zone="+00:00",
+                best_threshold=[0.5, 0.5], min_event_length=[1,2.5], informed_thresh=False):
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(device)
@@ -71,7 +72,7 @@ def test_model(weights, save_path, dataset_path, file_format, output_path, save_
             batch_start = index.cpu().detach().numpy()
             batch_start = int(batch_start[0])             # index of first file in batch, aka first file of hour
             # pred = prediction.cpu().detach().numpy()
-            thresh_pred = get_thresholded_predictions(prediction, best_threshold, min_event_frames)
+            thresh_pred = get_thresholded_predictions(prediction, best_threshold, min_event_frames, informed_thresh)
             thresh_pred = thresh_pred[:, :, :-1]            # Discard background predictions
             count = multipleCount(thresh_pred)              # Count per file
             new_count = np.sum(count, axis=0)               # All counts added ... count per hour
@@ -165,6 +166,7 @@ if __name__ == "__main__":
     output_path = data["output_path"]
     time_zone = data["time_zone"]
     file_format = data["format"]
+    informed_thresh = data["BIT"]
 
     if(not exists("Results" + output_path + "/Output Plots")):
         makedirs("Results" + output_path + "/Output Plots")
