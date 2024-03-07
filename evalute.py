@@ -17,7 +17,8 @@ import argparse
 
 def test_model(weights, save_path, dataset_path, dataset_type, output_path,
                save_spectrograms: bool, plot_ROC: bool, save_metrics:bool, 
-               best_threshold=[0.5, 0.5], min_event_length=[1,2.5], informed_thresh=True):
+               best_threshold=[0.5, 0.5, 0.95], weak_threshold=[0.1, 0.1, 0.95], 
+               min_event_length=[1,2.5], informed_thresh=True, bg_thresh = 0.95):
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(device)
@@ -73,6 +74,7 @@ def test_model(weights, save_path, dataset_path, dataset_type, output_path,
         if(plot_ROC or save_metrics):
             for i, threshold in enumerate(thresholds):
                 threshold = np.ones(dataset_kwargs["num_events"])*threshold
+                threshold[-1] = bg_thresh
                 strong_metric = StrongMetrics(prediction,y, threshold, min_event_frames, informed_thresh=informed_thresh) 
                 weak_metric = WeakMetrics(weak_pred, weak_y, threshold)
                 if batch == 0:
@@ -82,7 +84,7 @@ def test_model(weights, save_path, dataset_path, dataset_type, output_path,
                     strong_error[i] = strong_error[i] + strong_metric.Errors()
                     weak_error[i] = weak_error[i] + weak_metric.Errors()
         plot_metric = StrongMetrics(prediction,y, best_threshold, min_event_frames, informed_thresh=informed_thresh)
-        plot_weak_metric = WeakMetrics(weak_pred, weak_y, best_threshold)
+        plot_weak_metric = WeakMetrics(weak_pred, weak_y, weak_threshold)
         if batch == 0:
             best_threshold_error = plot_metric.Errors()
             weak_best_threshold_error = plot_weak_metric.Errors()
@@ -163,8 +165,8 @@ def test_model(weights, save_path, dataset_path, dataset_type, output_path,
             
             if(save_metrics):
                 plt.rcParams.update({'font.size': 16})
-                fig, ax = plt.subplots(nrows=1, ncols=dataset_kwargs["num_events"], figsize=(20,5))
-                fig2, ax2 = plt.subplots(nrows=1, ncols=dataset_kwargs["num_events"], figsize=(20,5))
+                fig, ax = plt.subplots(nrows=1, ncols=dataset_kwargs["num_events"]-1, figsize=(20,5))
+                fig2, ax2 = plt.subplots(nrows=1, ncols=dataset_kwargs["num_events"]-1, figsize=(20,5))
                 for axis in range(len(ax)):
                     ax[axis].bar(X_axis,strong_error_values[i,axis,:])
                     ax[axis].set_xlabel("Metric")
@@ -192,8 +194,8 @@ def test_model(weights, save_path, dataset_path, dataset_type, output_path,
         weak_best_threshold_error_values[:,2] = weak_best_threshold_error[:,3]/ (weak_best_threshold_error[:,3] + weak_best_threshold_error[:,1] + 0.0001)    # Precision
         weak_best_threshold_error_values[:,3] = weak_best_threshold_error[:,3]/ (weak_best_threshold_error[:,3] + weak_best_threshold_error[:,2] + 0.0001)    # Recall
         if(save_metrics):
-            fig, ax = plt.subplots(nrows=1, ncols=dataset_kwargs["num_events"], figsize=(20,5))
-            fig2, ax2 = plt.subplots(nrows=1, ncols=dataset_kwargs["num_events"], figsize=(20,5))
+            fig, ax = plt.subplots(nrows=1, ncols=dataset_kwargs["num_events"]-1, figsize=(20,5))
+            fig2, ax2 = plt.subplots(nrows=1, ncols=dataset_kwargs["num_events"]-1, figsize=(20,5))
             for axis in range(len(ax)):
                 ax[axis].bar(X_axis,best_threshold_error_values[axis,:])
                 ax[axis].set_xlabel("Metric")
@@ -221,7 +223,7 @@ def test_model(weights, save_path, dataset_path, dataset_type, output_path,
     if(plot_ROC):
         alpha = strong_error_values[:,:,0]
         beta = 1-strong_error_values[:,:,1]
-        fig, ax = plt.subplots(1, dataset_kwargs["num_events"], figsize=(20,7))
+        fig, ax = plt.subplots(1, dataset_kwargs["num_events"]-1, figsize=(10,7))
         for axis in range(len(ax)):
             ax[axis].plot(alpha[:, axis], beta[:, axis])
             ax[axis].scatter(alpha[:, axis], beta[:, axis])
@@ -237,7 +239,7 @@ def test_model(weights, save_path, dataset_path, dataset_type, output_path,
 
         alpha = weak_error_values[:,:,0]
         beta = 1-weak_error_values[:,:,1]
-        fig, ax = plt.subplots(1, dataset_kwargs["num_events"], figsize=(20,7))
+        fig, ax = plt.subplots(1, dataset_kwargs["num_events"]-1, figsize=(20,7))
         for axis in range(len(ax)):
             ax[axis].plot(alpha[:, axis], beta[:, axis])
             ax[axis].scatter(alpha[:, axis], beta[:, axis])
@@ -268,7 +270,8 @@ if __name__ == "__main__":
     eval_dataset_type = data["eval_dataset_type"]
     model_weights = data["model_weights"]
     save_path = data["save_path"]
-    best_threshold = data["best_threshold"]
+    best_threshold = data["strong_threshold"]
+    weak_threshold = data["weak_threshold"]
     min_event_length = data["min_event_length"]
     output_path = data["output_path"]
     informed_thresh = data["BIT"]
@@ -288,4 +291,4 @@ if __name__ == "__main__":
 
     test_model(model_weights, save_path, eval_dataset_path, eval_dataset_type, output_path,
                 save_spectrograms=save_spectrograms, plot_ROC=plot_ROC, save_metrics=save_metrics,
-                best_threshold=best_threshold, min_event_length=min_event_length, informed_thresh=informed_thresh)
+                best_threshold=best_threshold, weak_threshold=weak_threshold, min_event_length=min_event_length, informed_thresh=informed_thresh)

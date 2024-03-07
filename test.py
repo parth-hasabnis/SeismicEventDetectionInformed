@@ -4,6 +4,7 @@ import torch
 from torch.utils.data import DataLoader
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.ticker import MultipleLocator
 from Utility_files.single_file_data import SeismicIterableDataset
 from Utility_files.utils import simpleCount, multipleCount
 from Utility_files.metrics import get_thresholded_predictions
@@ -89,7 +90,7 @@ def test_model(weights, save_path, dataset_path, file_format, output_path, save_
             event_count_dict[batch_start] = [hour_start_string, hour_end_string, new_count.tolist()]
 
             if save_spectrograms:
-                heigths = [10, 20, 30, 40]
+                heigths = [10, 30]
                 upsampler = torch.nn.Upsample(scale_factor=pooling_time_ratio, mode='nearest')
                 upsampler = upsampler.to(device)
                 prediction = torch.from_numpy(thresh_pred)
@@ -102,18 +103,31 @@ def test_model(weights, save_path, dataset_path, file_format, output_path, save_
                     x = O[i].squeeze(dim=0)
                     x = x.cpu().detach().numpy()
                     # x = np.flip(x, axis=0)
-                    pred_ = prediction[i].cpu().detach().numpy()
+                    pred_ = prediction[i].cpu().detach().numpy() - 0.5
+                    sample_rate = dataset_args["sample_rate"]
 
                     fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(15, 9))
+                    plt.rcParams.update({'font.size': 20})
                     ax.imshow(x)
-                    ax.plot(pred_[0]*heigths[0], linewidth=3)
-                    ax.plot(pred_[1]*heigths[1], linewidth=3)
+                    ax.plot(pred_[0]*heigths[0], linewidth=3, color='magenta')
+                    ax.plot(pred_[1]*heigths[1], linewidth=3, color='orange')
                     ax.set_ylim([0, dataset_args["max_mel_band"]-1])
                     ax.set_title("Spectrogram with predictions and targets")
                     ax.set_xlabel("Time")
                     ax.set_ylabel("Mel bands")
-                    ax.set_yticks(np.arange(0, dataset_args["max_mel_band"], 2))
-                    plt.legend(["P Vehicle", "P Pedestrian"])
+                    ax.set_yticks(np.arange(0, dataset_args["max_mel_band"], 4))
+                    ax.xaxis.set_major_locator(MultipleLocator(10))
+                    ax.xaxis.set_minor_locator(MultipleLocator(1))
+                    ax.yaxis.set_major_locator(MultipleLocator(4))
+                    ax.yaxis.set_minor_locator(MultipleLocator(1))
+
+                    ax1 = ax.twinx()
+                    ax1.set_ylim(0, 250)
+                    ax1.set_yticks(np.arange(25,sample_rate/2+1, 25))
+                    ax1.set_ylabel("Frequency (Hz)")
+                    ax1.yaxis.set_minor_locator(MultipleLocator(5))
+
+                    ax.legend(["Prediction Vehicle", "Prediction Pedestrian"])
                     plt.savefig(f"Results/{output_path}/Output plots/{batch_start}_{i}.png")  
                     plt.close()
 

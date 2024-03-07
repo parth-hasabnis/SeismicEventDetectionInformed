@@ -1,6 +1,6 @@
-# Seismic Event Detection
+# Urban Seismic Event Detection
 
-This file will serve as a tutorial to train and test AI models to perform Seismic Event Detection 
+This file will serve as a tutorial to train and test AI models to perform Urban Seismic Event Detection 
 
 ## Requirements
 The following python packages are necessary to create a dataset and train a model (Versions included)
@@ -27,8 +27,14 @@ scikitlearn=1.3.1
 torchvision torchaudio pytorch-cuda=11.8 -c pytorch -c nvidia
 pytorch version=2.1.0
 ```
+## Downloading the Dataset
 
-## Creating the dataset
+The dataset can be found at: [https://zenodo.org/doi/10.5281/zenodo.10724592](https://zenodo.org/doi/10.5281/zenodo.10724592). 
+Contains Datasets for training and testing models for Urban Seismic Event Detection (USED).
+
+1. Strong Dataset: Contains Synthetic Data to be used for supervised learning
+2. Unlabel Dataset: Contains unlabeled data to be used for semi supervised (or unsupervised) learning
+3. Test Synth: Synthetic Dataset to evaluate models
+4. Test Real: Small Real Dataset to evaluate model
 
 ## Training and testing 
-View the 
