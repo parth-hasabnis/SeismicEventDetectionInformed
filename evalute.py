@@ -55,13 +55,15 @@ def test_model(weights, save_path, dataset_path, dataset_type, output_path,
     bases = np.linspace(-5, 5, 22)          # Thresholds for predictions
     thresholds = 1/(1 + np.exp(-bases))     # Generate exponentially distributed thresholds
     thresholds = [0.00001, 0.0001, 0.001, 0.01, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.99, 0.999]
-    X_axis = ["False Alarm", "Miss", "Precison", "Recall"]
+    X_axis = ["False Alarm", "Miss", "Precison", "Recall", "F-score"]
     strong_error = list()
-    strong_error_values = np.zeros((len(thresholds),dataset_kwargs["num_events"], 4))
+    strong_error_values = np.zeros((len(thresholds),dataset_kwargs["num_events"], len(X_axis)))
     weak_error = list()
-    weak_error_values = np.zeros((len(thresholds),dataset_kwargs["num_events"], 4))
-    best_threshold_error_values = np.zeros((dataset_kwargs["num_events"], 4))
-    weak_best_threshold_error_values = np.zeros((dataset_kwargs["num_events"], 4))
+    weak_error_values = np.zeros((len(thresholds),dataset_kwargs["num_events"], len(X_axis)))
+    best_threshold_error_values = np.zeros((dataset_kwargs["num_events"], len(X_axis)))
+    weak_best_threshold_error_values = np.zeros((dataset_kwargs["num_events"], len(X_axis)))
+    weakAUC = np.zeros(dataset_kwargs["num_events"])
+    strongAUC = np.zeros(dataset_kwargs["num_events"])
 
     for batch, (O, X,y) in enumerate(eval_loader):
         with torch.inference_mode():
@@ -156,12 +158,21 @@ def test_model(weights, save_path, dataset_path, dataset_type, output_path,
             strong_error_values[i, :, 1] = strong_error[i, :, 2]/ (strong_error[i, :, 2] + strong_error[i, :, 3] + 0.0001)           # Miss
             strong_error_values[i, :, 2] = strong_error[i, :, 3]/ (strong_error[i, :, 3] + strong_error[i, :, 1] + 0.0001)           # Precision
             strong_error_values[i, :, 3] = strong_error[i, :, 3]/ (strong_error[i, :, 3] + strong_error[i, :, 2] + 0.0001)           # Recall
+            # F-score
+            strong_error_values[i, :, 4] = 2*(strong_error_values[i, :, 2] * strong_error_values[i, :, 3])/(strong_error_values[i, :, 2] + strong_error_values[i, :, 3] + 0.0001)
 
             # Weak prediction metrics
             weak_error_values[i, :, 0] = weak_error[i, :, 1]/ (weak_error[i, :, 1] + weak_error[i, :, 0] + 0.0001)           # False Alarm
             weak_error_values[i, :, 1] = weak_error[i, :, 2]/ (weak_error[i, :, 2] + weak_error[i, :, 3] + 0.0001)           # Miss
             weak_error_values[i, :, 2] = weak_error[i, :, 3]/ (weak_error[i, :, 3] + weak_error[i, :, 1] + 0.0001)           # Precision
-            weak_error_values[i, :, 3] = weak_error[i, :, 3]/ (weak_error[i, :, 3] + weak_error[i, :, 2] + 0.0001)           # Recall
+            weak_error_values[i, :, 3] = weak_error[i, :, 3]/ (weak_error[i, :, 3] + weak_error[i, :, 2] + 0.0001)           # 
+            # F-score
+            weak_error_values[i, :, 4] = 2*(weak_error_values[i, :, 2] * weak_error_values[i, :, 3])/(weak_error_values[i, :, 2] + weak_error_values[i, :, 3] + 0.0001)
+
+            1-strong_error_values[:,:,1]
+            if i>0:
+                strongAUC = strongAUC + abs((strong_error_values[i, :, 0] - strong_error_values[i-1, :, 0])*(2 - strong_error_values[i-1, :, 1] - strong_error_values[i, :, 1])/2)
+                weakAUC = weakAUC + abs((weak_error_values[i, :, 0] - weak_error_values[i-1, :, 0])*(2 - weak_error_values[i-1, :, 1] - weak_error_values[i, :, 1])/2)
             
             if(save_metrics):
                 plt.rcParams.update({'font.size': 16})
@@ -173,6 +184,9 @@ def test_model(weights, save_path, dataset_path, dataset_type, output_path,
                     ax[axis].set_ylabel(f"Threshold = {threshold}")
                     ax[axis].set_title(events[axis])
                     ax[axis].set_yticks(np.linspace(0,1,11))
+                    for i in range(len(X_axis)):
+                        val = "{:.2f}".format(strong_error_values[axis,i]*100)
+                        ax[axis].text(i, strong_error_values[axis,i], val, ha = 'center')
                     fig.savefig(f"Results/{output_path}/Errors/strong_{model_weights}_threshold_{threshold}.png")
 
                     ax2[axis].bar(X_axis,weak_error_values[i,axis,:])
@@ -180,6 +194,9 @@ def test_model(weights, save_path, dataset_path, dataset_type, output_path,
                     ax2[axis].set_ylabel(f"Threshold = {threshold}")
                     ax2[axis].set_title(events[axis])
                     ax2[axis].set_yticks(np.linspace(0,1,11))
+                    for i in range(len(X_axis)):
+                        val = "{:.2f}".format(weak_error_values[axis,i]*100)
+                        ax2[axis].text(i, weak_error_values[axis,i], val, ha = 'center')
                     fig2.savefig(f"Results/{output_path}/Errors/weak_{model_weights}_threshold_{threshold}.png")
                 plt.close(fig)
                 plt.close(fig2)
@@ -188,12 +205,18 @@ def test_model(weights, save_path, dataset_path, dataset_type, output_path,
         best_threshold_error_values[:,1] = best_threshold_error[:,2]/ (best_threshold_error[:,2] + best_threshold_error[:,3] + 0.0001)    # Miss
         best_threshold_error_values[:,2] = best_threshold_error[:,3]/ (best_threshold_error[:,3] + best_threshold_error[:,1] + 0.0001)    # Precision
         best_threshold_error_values[:,3] = best_threshold_error[:,3]/ (best_threshold_error[:,3] + best_threshold_error[:,2] + 0.0001)    # Recall
+        # F-score
+        best_threshold_error_values[:, 4] = 2*(best_threshold_error_values[:, 2] * best_threshold_error_values[:, 3])/(best_threshold_error_values[:, 2] + best_threshold_error_values[:, 3] + 0.0001)
+
 
         weak_best_threshold_error_values[:,0] = weak_best_threshold_error[:,1]/ (weak_best_threshold_error[:,1] + weak_best_threshold_error[:,0] + 0.0001)    # False Alarm
         weak_best_threshold_error_values[:,1] = weak_best_threshold_error[:,2]/ (weak_best_threshold_error[:,2] + weak_best_threshold_error[:,3] + 0.0001)    # Miss
         weak_best_threshold_error_values[:,2] = weak_best_threshold_error[:,3]/ (weak_best_threshold_error[:,3] + weak_best_threshold_error[:,1] + 0.0001)    # Precision
         weak_best_threshold_error_values[:,3] = weak_best_threshold_error[:,3]/ (weak_best_threshold_error[:,3] + weak_best_threshold_error[:,2] + 0.0001)    # Recall
-        if(save_metrics):
+        # F-score
+        weak_best_threshold_error_values[:, 4] = 2*(weak_best_threshold_error_values[:, 2] * weak_best_threshold_error_values[:, 3])/(weak_best_threshold_error_values[:, 2] + weak_best_threshold_error_values[:, 3] + 0.0001)
+        if(1):
+            plt.rcParams.update({'font.size': 16})
             fig, ax = plt.subplots(nrows=1, ncols=dataset_kwargs["num_events"]-1, figsize=(20,5))
             fig2, ax2 = plt.subplots(nrows=1, ncols=dataset_kwargs["num_events"]-1, figsize=(20,5))
             for axis in range(len(ax)):
@@ -208,7 +231,7 @@ def test_model(weights, save_path, dataset_path, dataset_type, output_path,
 
                 ax2[axis].bar(X_axis,weak_best_threshold_error_values[axis,:])
                 ax2[axis].set_xlabel("Metric")
-                ax2[axis].set_ylabel(f"Threshold = {best_threshold[axis]}")
+                ax2[axis].set_ylabel(f"Threshold = {weak_threshold[axis]}")
                 ax2[axis].set_title(events[axis])
                 ax2[axis].set_yticks(np.linspace(0,1,11))
                 for i in range(len(X_axis)):
@@ -221,35 +244,38 @@ def test_model(weights, save_path, dataset_path, dataset_type, output_path,
             plt.close(fig2)
 
     if(plot_ROC):
+        plt.rcParams.update({'font.size': 12})
         alpha = strong_error_values[:,:,0]
         beta = 1-strong_error_values[:,:,1]
-        fig, ax = plt.subplots(1, dataset_kwargs["num_events"]-1, figsize=(10,7))
+        fig, ax = plt.subplots(1, dataset_kwargs["num_events"]-1, figsize=(10,5))
         for axis in range(len(ax)):
             ax[axis].plot(alpha[:, axis], beta[:, axis])
             ax[axis].scatter(alpha[:, axis], beta[:, axis])
-            for i, t in enumerate(thresholds):
-                ax[axis].annotate(f"{t:.2f}", (alpha[i, axis] + 0.01, beta[i, axis] + 0.01))
+            # for i, t in enumerate(thresholds):
+            #     ax[axis].annotate(f"{t:.2f}", (alpha[i, axis] + 0.01, beta[i, axis] + 0.01))
             ax[axis].set_xlabel("Probability of False Alarm")
             ax[axis].set_ylabel("Probability of Detection")
             ax[axis].set_xlim([0,1])
             ax[axis].set_ylim([0,1])
-            ax[axis].set_title(events[axis])
+            title = f"{events[axis]}, AUC = {strongAUC[axis]:.2f}"
+            ax[axis].set_title(title)
         fig.suptitle("Receiver Operating Characteristic")
         plt.savefig(f"Results/{output_path}/Errors/strong_ROC_{model_weights}.png")
 
         alpha = weak_error_values[:,:,0]
         beta = 1-weak_error_values[:,:,1]
-        fig, ax = plt.subplots(1, dataset_kwargs["num_events"]-1, figsize=(20,7))
+        fig, ax = plt.subplots(1, dataset_kwargs["num_events"]-1, figsize=(10,5))
         for axis in range(len(ax)):
             ax[axis].plot(alpha[:, axis], beta[:, axis])
             ax[axis].scatter(alpha[:, axis], beta[:, axis])
-            for i, t in enumerate(thresholds):
-                ax[axis].annotate(f"{t:.2f}", (alpha[i, axis] + 0.01, beta[i, axis] + 0.01))
+            # for i, t in enumerate(thresholds):
+            #     ax[axis].annotate(f"{t:.2f}", (alpha[i, axis] + 0.01, beta[i, axis] + 0.01))
             ax[axis].set_xlabel("Probability of False Alarm")
             ax[axis].set_ylabel("Probability of Detection")
             ax[axis].set_xlim([0,1])
             ax[axis].set_ylim([0,1])
-            ax[axis].set_title(events[axis])
+            title = f"{events[axis]}, AUC = {weakAUC[axis]:.2f}"
+            ax[axis].set_title(title)
         fig.suptitle("Receiver Operating Characteristic")
         plt.savefig(f"Results/{output_path}/Errors/weak_ROC_{model_weights}.png")
 
