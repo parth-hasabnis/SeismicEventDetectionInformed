@@ -184,9 +184,9 @@ def test_model(weights, save_path, dataset_path, dataset_type, output_path,
                     ax[axis].set_ylabel(f"Threshold = {threshold}")
                     ax[axis].set_title(events[axis])
                     ax[axis].set_yticks(np.linspace(0,1,11))
-                    for i in range(len(X_axis)):
-                        val = "{:.2f}".format(strong_error_values[axis,i]*100)
-                        ax[axis].text(i, strong_error_values[axis,i], val, ha = 'center')
+                    for metric_type in range(len(X_axis)):
+                        val = "{:.2f}".format(strong_error_values[i, axis,metric_type]*100)
+                        ax[axis].text(metric_type, strong_error_values[i, axis,metric_type], val, ha = 'center')
                     fig.savefig(f"Results/{output_path}/Errors/strong_{model_weights}_threshold_{threshold}.png")
 
                     ax2[axis].bar(X_axis,weak_error_values[i,axis,:])
@@ -194,9 +194,9 @@ def test_model(weights, save_path, dataset_path, dataset_type, output_path,
                     ax2[axis].set_ylabel(f"Threshold = {threshold}")
                     ax2[axis].set_title(events[axis])
                     ax2[axis].set_yticks(np.linspace(0,1,11))
-                    for i in range(len(X_axis)):
-                        val = "{:.2f}".format(weak_error_values[axis,i]*100)
-                        ax2[axis].text(i, weak_error_values[axis,i], val, ha = 'center')
+                    for metric_type in range(len(X_axis)):
+                        val = "{:.2f}".format(weak_error_values[i,axis,metric_type]*100)
+                        ax2[axis].text(metric_type, weak_error_values[i,axis,metric_type], val, ha = 'center')
                     fig2.savefig(f"Results/{output_path}/Errors/weak_{model_weights}_threshold_{threshold}.png")
                 plt.close(fig)
                 plt.close(fig2)
@@ -225,18 +225,18 @@ def test_model(weights, save_path, dataset_path, dataset_type, output_path,
                 ax[axis].set_ylabel(f"Threshold = {best_threshold[axis]}")
                 ax[axis].set_title(events[axis])
                 ax[axis].set_yticks(np.linspace(0,1,11))
-                for i in range(len(X_axis)):
-                    val = "{:.2f}".format(best_threshold_error_values[axis,i]*100)
-                    ax[axis].text(i, best_threshold_error_values[axis,i], val, ha = 'center')
+                for metric_type in range(len(X_axis)):
+                    val = "{:.2f}".format(best_threshold_error_values[axis,metric_type]*100)
+                    ax[axis].text(metric_type, best_threshold_error_values[axis,metric_type], val, ha = 'center')
 
                 ax2[axis].bar(X_axis,weak_best_threshold_error_values[axis,:])
                 ax2[axis].set_xlabel("Metric")
                 ax2[axis].set_ylabel(f"Threshold = {weak_threshold[axis]}")
                 ax2[axis].set_title(events[axis])
                 ax2[axis].set_yticks(np.linspace(0,1,11))
-                for i in range(len(X_axis)):
-                    val = "{:.2f}".format(weak_best_threshold_error_values[axis,i]*100)
-                    ax2[axis].text(i, weak_best_threshold_error_values[axis,i], val, ha = 'center')
+                for metric_type in range(len(X_axis)):
+                    val = "{:.2f}".format(weak_best_threshold_error_values[axis,metric_type]*100)
+                    ax2[axis].text(metric_type, weak_best_threshold_error_values[axis,metric_type], val, ha = 'center')
 
             fig.savefig(f"Results/{output_path}/Errors/strong_{model_weights}_best_threshold.png")
             fig2.savefig(f"Results/{output_path}/Errors/weak_{model_weights}_best_threshold.png")
