@@ -115,6 +115,7 @@ def test_model(weights, save_path, dataset_path, file_format, output_path, save_
                     ax.set_title("Spectrogram with predictions and targets")
                     ax.set_xlabel("Time")
                     ax.set_ylabel("Mel bands")
+                    ax.set_xticks(np.arange(0,100,10), labels=np.arange(0,10,1))
                     ax.set_yticks(np.arange(0, dataset_args["max_mel_band"], 4))
                     ax.xaxis.set_major_locator(MultipleLocator(10))
                     ax.xaxis.set_minor_locator(MultipleLocator(1))
