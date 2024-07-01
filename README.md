@@ -38,3 +38,13 @@ Contains Datasets for training and testing models for Urban Seismic Event Detect
 4. Test Real: Small Real Dataset to evaluate model
 
 ## Training and testing 
+
+Run the following command to train the model.
+```
+python train.py -f [training-arguments]
+```
+The command line argument is a JSON file with all training arguments' values. The default training arguments are described in "default_arguments.json". Eg:
+```
+python train.py -f default_arguments.json
+``` 
+
