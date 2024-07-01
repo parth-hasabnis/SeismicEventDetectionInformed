@@ -49,7 +49,7 @@ python train.py -f default_arguments.json
 ```
 To evaluate the performance of the model on labelled datasets, run the following command:
 ```
-python evaluate.py -f [eval-arguments] -r [bool] -m [bool] -mp [bool]
+python evaluate.py -f [eval-arguments] -r [bool] -m [bool] -p [bool]
 ```
 It takes the following arguments:
 --file     -f    Testing arguments. Eg: default_eval_arguments.json
@@ -61,7 +61,7 @@ Eg: ``` python evaluate.py -f default_eval_arguments.json -p ```
 
 To test the model on long-term continuous data, run the following command:
 ```
-python test.py -f [test-arguments.json] -p  
+python test.py -f [test-arguments.json] -p [bool]
 ```
 It takes the following arguments:
 --file     -f    Testing arguments. Eg: default_eval_arguments.json
