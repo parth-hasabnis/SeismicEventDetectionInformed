@@ -7,9 +7,10 @@ test_stuff.py
 read_test_counts.py
 Datasets.txt
 jank_unlabel.py
+evalthesis.py
 
 # Outputs and Results
-Results/
+Results_local/
 
 # Training arguments
 training_arguments.json
@@ -24,3 +25,4 @@ test_arguments.json
 test_arguments_phase4.json
 test_arguments_phase4_20.json
 test_arguments_plot.json
+test_arguments_vehicle.json

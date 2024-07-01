@@ -1,0 +1,61 @@
+{
+  "save_path": "\\all_phase_no_mean_teacher_mel_0",
+  "SYNTH_PATH": [
+    "D:\\Purdue\\Thesis\\eaps data\\Fall 23\\EAPS\\DATASET\\Train\\Strong_Dataset_v2",
+    "D:\\Purdue\\Thesis\\eaps data\\Fall 23\\EAPS\\DATASET\\Train\\Strong_Dataset_v3",
+    "D:\\Purdue\\Thesis\\eaps data\\Fall 23\\EAPS\\DATASET\\Train\\Strong_Dataset_v5",
+    "D:\\Purdue\\Thesis\\eaps data\\Fall 23\\EAPS\\DATASET\\Train\\Strong_Dataset_v6",
+    "D:\\Purdue\\Thesis\\eaps data\\Fall 23\\EAPS\\DATASET\\Train\\Strong_Dataset_v7",
+    "D:\\Purdue\\Thesis\\eaps data\\Fall 23\\EAPS\\DATASET\\Train\\Strong_Dataset_v8"
+  ],
+  "UNLABEL_PATH": [
+    "D:\\Purdue\\Thesis\\eaps data\\Fall 23\\EAPS\\DATASET\\Train\\Unlabel_Dataset_v2",
+    "D:\\Purdue\\Thesis\\eaps data\\Fall 23\\EAPS\\DATASET\\Train\\Unlabel_Dataset_v5",
+    "D:\\Purdue\\Thesis\\eaps data\\Fall 23\\EAPS\\DATASET\\Train\\Unlabel_Dataset_v6",
+    "D:\\Purdue\\Thesis\\eaps data\\Fall 23\\EAPS\\DATASET\\Train\\Unlabel_Dataset_v7",
+    "D:\\Purdue\\Thesis\\eaps data\\Fall 23\\EAPS\\DATASET\\Train\\Unlabel_Dataset_v8"
+  ],
+  "training_args": {
+    "lr": 0.001,
+    "momentum": 0.7,
+    "nesterov": true,
+    "epochs": 25,
+    "exclude_unlabelled": true,
+    "consistency": 20,
+    "batch_sizes": [
+      1000
+    ],
+    "initial_lr": 1e-05,
+    "lr_rampup": 7,
+    "consistency_rampup": 15,
+    "ema_decay": 0.999,
+    "subsets": [
+      "synthetic",
+      "unlabel"
+    ],
+    "events": [
+      "Vehicle",
+      "Pedestrian",
+      "Background"
+    ],
+    "mask_synth": false,
+    "mask_unlabel": false
+  },
+  "dataset_args": {
+    "num_events": 3,
+    "max_mel_band": 64,
+    "stft_window_seconds": 0.25,
+    "stft_hop_seconds": 0.1,
+    "mel_bands": 64,
+    "sample_rate": 500,
+    "power": 2,
+    "normalize": true,
+    "mel_offset": 0,
+    "eval": false,
+    "LOG_OFFSET": 0.001
+  },
+  "continue_training_args": {
+    "continue": false,
+    "epoch": 0
+  }
+}
