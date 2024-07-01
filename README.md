@@ -61,7 +61,7 @@ Eg: ``` python evaluate.py -f default_eval_arguments.json -p ```
 
 To test the model on long-term continuous data, run the following command:
 ```
-python test.py -f [test-arguments.json] -p [bool]
+python test.py -f [test-arguments] -p [bool]
 ```
 It takes the following arguments:
 --file     -f    Testing arguments. Eg: default_eval_arguments.json
