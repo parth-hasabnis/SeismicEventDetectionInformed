@@ -33,18 +33,38 @@ The dataset can be found at: [https://zenodo.org/doi/10.5281/zenodo.10724592](ht
 Contains Datasets for training and testing models for Urban Seismic Event Detection (USED).
 
 1. Strong Dataset: Contains Synthetic Data to be used for supervised learning
-2. Unlabel Dataset: Contains unlabeled data to be used for semi supervised (or unsupervised) learning
+2. Unlabel Dataset: Contains unlabeled data to be used for semi-supervised (or unsupervised) learning
 3. Test Synth: Synthetic Dataset to evaluate models
 4. Test Real: Small Real Dataset to evaluate model
 
-## Training and testing 
+## Training and Evaluation
 
-Run the following command to train the model.
+Run the following command to train the model:
 ```
 python train.py -f [training-arguments]
 ```
-The command line argument is a JSON file with all training arguments' values. The default training arguments are described in "default_arguments.json". Eg:
+The command line argument is a JSON file with all training argument values. The default training arguments are described in "default_arguments.json". Eg:
 ```
 python train.py -f default_arguments.json
-``` 
+```
+To evaluate the performance of the model on labelled datasets, run the following command:
+```
+python evaluate.py -f [eval-arguments] -r [bool] -m [bool] -mp [bool]
+```
+It takes the following arguments:
+--file     -f    Testing arguments. Eg: default_eval_arguments.json
+--roc      -roc  Generate Receiver Operating Characteristic. default: True
+--metrics  -m    Generate evaluation metrics. default: True
+--plot     -p    Save spectrograms of input data overlayed with labels and predictions. default: False
 
+Eg: ``` python evaluate.py -f default_eval_arguments.json -p ```
+
+To test the model on long-term continuous data, run the following command:
+```
+python test.py -f [test-arguments.json] -p  
+```
+It takes the following arguments:
+--file     -f    Testing arguments. Eg: default_eval_arguments.json
+--plot     -p    Save spectrograms of input data overlayed with labels and predictions. default: False
+
+Eg: ``` python test.py -f default_test_arguments.json -p ```
